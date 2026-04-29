@@ -1977,9 +1977,10 @@ If you’re wondering what I’m thinking… I’m wondering the same thing abou
 
                 // Gentle floating/swaying motion using rotation (bones use rotation, not position)
                 // Bones control the mesh through rotation, so we animate rotation
-                const rotateX = Math.sin(time * 0.5 + offset) * 0.15; // Pitch (up/down tilt)
-                const rotateY = Math.cos(time * 0.4 + offset) * 0.12; // Yaw (left/right turn)
-                const rotateZ = Math.sin(time * 0.6 + offset) * 0.10; // Roll (twist)
+                // Increased frequencies for faster, more noticeable movement
+                const rotateX = Math.sin(time * 1.2 + offset) * 0.15; // Pitch (up/down tilt) - 2.4x faster
+                const rotateY = Math.cos(time * 1.0 + offset) * 0.12; // Yaw (left/right turn) - 2.5x faster
+                const rotateZ = Math.sin(time * 1.4 + offset) * 0.10; // Roll (twist) - 2.3x faster
 
                 // Apply rotations RELATIVE to original rotation using quaternions
                 // This is the proper way to animate bones in Three.js
