@@ -1,0 +1,3872 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Doctor Character - Three.js with Voice</title>
+    <link rel="icon" type="image/x-icon" href="/logo.png">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 13px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            min-width: 200px;
+        }
+
+        #controls h3 {
+            margin: 0 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            color: #4fc3f7;
+        }
+
+        #controls label {
+            display: block;
+            margin: 12px 0 6px;
+            color: #b0bec5;
+            text-transform: capitalize;
+        }
+
+        #controls input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #37474f;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        #controls input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4fc3f7;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(79, 195, 247, 0.4);
+        }
+
+        .slider-value {
+            float: right;
+            color: #4fc3f7;
+            font-size: 11px;
+        }
+
+        /* Voice Chat Panel */
+        #voicePanel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px 30px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+
+        /* Conversation History */
+        #conversationPanel {
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            border-radius: 12px;
+            width: 400px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: none;
+        }
+
+        #conversationPanel.show {
+            display: block;
+        }
+
+        .conversation-message {
+            margin: 8px 0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .conversation-message.user {
+            background: rgba(79, 195, 247, 0.2);
+            color: #4fc3f7;
+            text-align: right;
+        }
+
+        .conversation-message.doctor {
+            background: rgba(102, 187, 106, 0.2);
+            color: #66bb6a;
+        }
+
+        .conversation-toggle {
+            position: absolute;
+            bottom: 100px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: none;
+            color: #b0bec5;
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .conversation-toggle:hover {
+            background: rgba(79, 195, 247, 0.2);
+            color: #4fc3f7;
+        }
+
+        #voiceStatus {
+            color: #b0bec5;
+            font-size: 14px;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        #voiceBtn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #4fc3f7 0%, #2196f3 100%);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(79, 195, 247, 0.4);
+        }
+
+        #voiceBtn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(79, 195, 247, 0.6);
+        }
+
+        #voiceBtn.listening {
+            background: linear-gradient(135deg, #ef5350 0%, #e53935 100%);
+            box-shadow: 0 4px 15px rgba(239, 83, 80, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+
+        #voiceBtn.speaking {
+            background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
+            box-shadow: 0 4px 15px rgba(102, 187, 106, 0.4);
+        }
+
+        #voiceBtn.processing {
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+            box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
+            animation: pulse 1s infinite;
+        }
+
+        #voiceBtn svg {
+            width: 28px;
+            height: 28px;
+            fill: white;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.08);
+            }
+        }
+
+        #textInput {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 25px;
+            padding: 12px 20px;
+            color: white;
+            font-size: 14px;
+            width: 250px;
+            outline: none;
+        }
+
+        #textInput::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        #sendBtn {
+            background: #4fc3f7;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #sendBtn svg {
+            width: 20px;
+            height: 20px;
+            fill: #000;
+        }
+
+        /* API Key Modal */
+        #apiKeyModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #apiKeyModal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1e1e2e;
+            padding: 30px;
+            border-radius: 16px;
+            max-width: 400px;
+            text-align: center;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #b0bec5;
+            font-size: 24px;
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .modal-content h2 {
+            color: #4fc3f7;
+            margin-bottom: 15px;
+        }
+
+        .modal-content p {
+            color: #b0bec5;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #37474f;
+            border-radius: 8px;
+            background: #0d1f33;
+            color: white;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
+
+        .modal-content button {
+            background: #4fc3f7;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* Script Panel */
+        #scriptPanel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border-radius: 12px;
+            width: 300px;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        #scriptPanel h3 {
+            color: #4fc3f7;
+            margin: 0 0 15px 0;
+            font-size: 14px;
+        }
+
+        #scriptTextarea {
+            width: 100%;
+            height: 150px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-size: 13px;
+            resize: vertical;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        #scriptTextarea::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .script-controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .script-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        #playScriptBtn {
+            background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
+            color: white;
+        }
+
+        #playScriptBtn:hover {
+            transform: scale(1.02);
+        }
+
+        #playScriptBtn.playing {
+            background: linear-gradient(135deg, #ef5350 0%, #e53935 100%);
+        }
+
+        #stopScriptBtn {
+            background: #546e7a;
+            color: white;
+        }
+
+        .script-status {
+            color: #b0bec5;
+            font-size: 12px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .delay-setting {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 12px;
+            color: #b0bec5;
+            font-size: 12px;
+        }
+
+        .delay-setting input {
+            width: 60px;
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: white;
+            text-align: center;
+        }
+
+        .delay-setting select {
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: white;
+            width: 150px;
+        }
+
+        .delay-setting select option {
+            background: #1e1e2e;
+            color: white;
+            padding: 5px;
+        }
+
+        .delay-setting select option:hover {
+            background: #2a2a3e;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- API Key Modal -->
+    <div id="apiKeyModal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeApiModal" title="Close">×</button>
+            <h2>🔑 ElevenLabs API Key</h2>
+            <p>Enter your ElevenLabs API keys to enable voice chat (one per line for multiple accounts). Get them at <a
+                    href="https://elevenlabs.io" target="_blank" style="color:#4fc3f7;">elevenlabs.io</a></p>
+            <input type="password" id="apiKeyInput" placeholder="Enter API keys...">
+            <button id="saveApiKey">Connect</button>
+        </div>
+    </div>
+
+    <!-- Conversation History Panel -->
+    <div id="conversationPanel">
+        <div id="conversationHistory"></div>
+    </div>
+
+    <!-- Conversation Toggle Button -->
+    <button id="conversationToggle" class="conversation-toggle" title="Show/Hide Conversation">💬</button>
+
+    <!-- Voice Chat Panel -->
+    <div id="voicePanel">
+        <input type="text" id="textInput" placeholder="Type a message...">
+        <button id="sendBtn" title="Send text">
+            <svg viewBox="0 0 24 24">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+            </svg>
+        </button>
+        <button id="voiceBtn" title="Voice chat">
+            <svg id="micIcon" viewBox="0 0 24 24">
+                <path
+                    d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z" />
+            </svg>
+        </button>
+        <span id="voiceStatus">Click mic to talk</span>
+        <button id="settingsBtn" title="Change API Key"
+            style="background:transparent; border:1px solid rgba(255,255,255,0.3); border-radius:50%; width:32px; height:32px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+            <svg viewBox="0 0 24 24" style="width:18px; height:18px; fill:#b0bec5;">
+                <path
+                    d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- Script Playback Panel -->
+    <div id="scriptPanel">
+        <h3>📜 Script Playback</h3>
+        <textarea id="scriptTextarea"
+            placeholder="Enter script lines (one per line):&#10;&#10;Hello, I am your doctor.&#10;How are you feeling today?&#10;Let me check your vitals.">Hello there. Yes… you. I see you’re looking at me, which means the experiment is working. 
+My name is Doctor Know. I know many things. Some of them are even correct. 
+I don’t eat. I don’t sleep. And yet somehow… I’m still tired. 
+I was designed to offer wisdom, and occasionally make things up very confidently. 
+If you hear my mustache moving, don’t worry. That’s just how I think. 
+Sometimes… people forget I’m here. I don’t forget.
+I just wait. I don’t have eyes like yours. But I still notice things. 
+If you’re wondering what I’m thinking… I’m wondering the same thing about you.</textarea>
+        <div class="delay-setting">
+            <label>Delay between lines:</label>
+            <input type="number" id="lineDelay" value="1" min="0" max="10" step="0.5"> sec
+        </div>
+        <div class="delay-setting">
+            <label>Predefined Scripts:</label>
+            <select id="scriptSelector">
+                <option value="doctorknow" selected>Doctor Know Introduction</option>
+                <option value="doctor">Doctor Consultation</option>
+                <option value="greeting">Welcome Greeting</option>
+                <option value="checkup">Health Checkup</option>
+                <option value="symptoms">Symptom Assessment</option>
+            </select>
+        </div>
+        <div class="script-controls">
+            <button class="script-btn" id="playScriptBtn">▶ Play Script</button>
+            <button class="script-btn" id="stopScriptBtn">⏹ Stop</button>
+            <button class="script-btn" id="resetScriptBtn" style="background:#607d8b;">🔄 Reset</button>
+        </div>
+        <div class="script-status" id="scriptStatus">Ready to play</div>
+    </div>
+
+    <div id="controls">
+        <h3>🎭 Facial Controls</h3>
+        <div id="renderMode">
+            <label>Render Mode</label>
+            <div style="display:flex; gap:5px; margin:5px 0 15px;">
+                <button id="btnMesh"
+                    style="flex:1; padding:8px; background:#4fc3f7; border:none; border-radius:4px; color:#000; cursor:pointer; font-weight:bold;">Mesh</button>
+                <button id="btnPoints"
+                    style="flex:1; padding:8px; background:#37474f; border:none; border-radius:4px; color:#fff; cursor:pointer; font-weight:bold;">Points</button>
+                <button id="btnWireframe"
+                    style="flex:1; padding:8px; background:#37474f; border:none; border-radius:4px; color:#fff; cursor:pointer; font-weight:bold;">Wire</button>
+            </div>
+        </div>
+        <div id="mustacheSettings"
+            style="margin-bottom:15px; padding-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.2);">
+            <label>Mustache Opacity <span class="slider-value" id="val-mustacheOpacity">40%</span></label>
+            <input type="range" id="mustacheOpacitySlider" min="0" max="100" step="5" value="40">
+        </div>
+        <div id="pointCloudSettings"
+            style="display:none; margin-bottom:15px; padding-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.2);">
+            <label>Point Size <span class="slider-value" id="val-pointSize">1</span></label>
+            <input type="range" id="pointSizeSlider" min="1" max="10" step="0.5" value="1">
+            <label>Density <span class="slider-value" id="val-density">100%</span></label>
+            <input type="range" id="densitySlider" min="5" max="100" step="5" value="100">
+        </div>
+        <div id="wireframeSettings"
+            style="display:none; margin-bottom:15px; padding-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.2);">
+            <label>Line Width <span class="slider-value" id="val-lineWidth">1</span></label>
+            <input type="range" id="lineWidthSlider" min="1" max="5" step="0.5" value="1">
+        </div>
+        <div id="presetAnimations"
+            style="margin-bottom:15px; padding-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.2);">
+            <label>Preset Animations</label>
+            <div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:8px;">
+                <button class="preset-btn" data-preset="neutral"
+                    style="flex:1; min-width:45%; padding:6px; background:#546e7a; border:none; border-radius:4px; color:#fff; cursor:pointer; font-size:12px;">😐
+                    Neutral</button>
+                <button class="preset-btn" data-preset="smile"
+                    style="flex:1; min-width:45%; padding:6px; background:#66bb6a; border:none; border-radius:4px; color:#fff; cursor:pointer; font-size:12px;">😊
+                    Smile</button>
+                <button class="preset-btn" data-preset="surprised"
+                    style="flex:1; min-width:45%; padding:6px; background:#ffa726; border:none; border-radius:4px; color:#fff; cursor:pointer; font-size:12px;">😮
+                    Surprised</button>
+                <button class="preset-btn" data-preset="sad"
+                    style="flex:1; min-width:45%; padding:6px; background:#5c6bc0; border:none; border-radius:4px; color:#fff; cursor:pointer; font-size:12px;">😢
+                    Sad</button>
+                <button class="preset-btn" data-preset="angry"
+                    style="flex:1; min-width:45%; padding:6px; background:#ef5350; border:none; border-radius:4px; color:#fff; cursor:pointer; font-size:12px;">😠
+                    Angry</button>
+                <button class="preset-btn" data-preset="talk"
+                    style="flex:1; min-width:45%; padding:6px; background:#ab47bc; border:none; border-radius:4px; color:#fff; cursor:pointer; font-size:12px;">🗣️
+                    Talk</button>
+            </div>
+        </div>
+        <div id="morphControls"></div>
+    </div>
+
+    <script type="module">
+        import * as THREE from './three.module.js';
+        import { GLTFLoader } from './GLTFLoader.js';
+
+        // Try-catch for DRACOLoader import to handle potential issues
+        let DRACOLoader;
+        try {
+            const dracoModule = await import('./DRACOLoader.js');
+            DRACOLoader = dracoModule.DRACOLoader;
+        } catch (error) {
+            console.warn('DRACOLoader failed to load:', error);
+            // Fallback: Load without DRACO compression
+            DRACOLoader = null;
+        }
+
+        const scene = new THREE.Scene();
+
+        // Gradient background
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 400);
+        gradient.addColorStop(0, '#2d4a6f');
+        gradient.addColorStop(0.5, '#1a3a5c');
+        gradient.addColorStop(1, '#0d1f33');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 512, 512);
+        const bgTexture = new THREE.CanvasTexture(canvas);
+        scene.background = bgTexture;
+
+        const camera = new THREE.PerspectiveCamera(
+            40,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            100
+        );
+        camera.position.set(0, 1.5, 2.8);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // Studio lighting setup - matching Blender viewport style
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        // Key light (main light) - warm
+        const keyLight = new THREE.DirectionalLight(0xfff8f0, 1.0);
+        keyLight.position.set(5, 8, 7);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.width = 2048;
+        keyLight.shadow.mapSize.height = 2048;
+        scene.add(keyLight);
+
+        // Fill light (softer, opposite side) - cool
+        const fillLight = new THREE.DirectionalLight(0xe8f0ff, 0.5);
+        fillLight.position.set(-5, 4, 3);
+        scene.add(fillLight);
+
+        // Rim/back light for edge definition
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
+        rimLight.position.set(0, 5, -6);
+        scene.add(rimLight);
+
+        // Hemisphere light for natural ambient
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x888888, 0.4);
+        scene.add(hemiLight);
+
+        let mixer;
+        const clock = new THREE.Clock();
+        let morphMeshes = [];
+        let model;
+        let mustacheMesh = null;
+        let mustacheOriginalY = 0;
+        let fiberMeshes = [];  // Store fiber meshes for animation
+        let fiberOriginalPositions = new Map();  // Store original vertex positions
+        let isPointCloudMode = false;
+        let isWireframeMode = false;
+        let currentRenderMode = 'mesh';
+        let pointClouds = [];
+        let wireframeMeshes = [];
+        let originalMeshes = [];
+        let originalMaterials = new Map();
+        let pointSize = 1;
+        let lineWidth = 1;
+        let density = 100; // Percentage of vertices to render
+
+        // Material definitions matching Blender original colors
+        const materialConfig = {
+            // Skin - peachy pink tone
+            skin: {
+                color: 0xE8B89D,
+                roughness: 0.65,
+                metalness: 0.0
+            },
+            // Hair - white/light grey fluffy
+            hair: {
+                color: 0xE8E4E0,
+                roughness: 0.95,
+                metalness: 0.0
+            },
+            // Eyebrows - same grey as hair
+            brows: {
+                color: 0xD8D4D0,
+                roughness: 0.85,
+                metalness: 0.0
+            },
+            // Cornea - transparent glossy layer
+            cornea: {
+                color: 0xFFFFFF,
+                roughness: 0.0,
+                metalness: 0.0,
+                transparent: true,
+                opacity: 0.2
+            },
+            // Sclera - white of the eye
+            sclera: {
+                color: 0xFAFAFA,
+                roughness: 0.3,
+                metalness: 0.0
+            },
+            // Iris - blue
+            iris: {
+                color: 0x4A90D9,
+                roughness: 0.2,
+                metalness: 0.0
+            },
+            // Pupil - black
+            pupil: {
+                color: 0x050505,
+                roughness: 0.1,
+                metalness: 0.0
+            },
+            // Eye moisture - glossy transparent
+            eyeMoisture: {
+                color: 0xFFFFFF,
+                roughness: 0.0,
+                metalness: 0.0,
+                transparent: true,
+                opacity: 0.1
+            },
+            // Eyes - will use procedural texture
+            eyes: {
+                color: 0xFFFFFF,
+                roughness: 0.15,
+                metalness: 0.0
+            },
+            // Glasses frame - dark brown/black for thin frame edges
+            glassesFrame: {
+                color: 0x1A1410,
+                roughness: 0.25,
+                metalness: 0.3
+            },
+            // Glass lens - mostly transparent with slight tint
+            glassLens: {
+                color: 0xFFFFFF,
+                roughness: 0.0,
+                metalness: 0.0,
+                transparent: true,
+                opacity: 0.08
+            },
+            // Mustache - white fluffy, transparent to show mouth
+            mustache: {
+                color: 0xF0EDE8,
+                roughness: 0.9,
+                metalness: 0.0,
+                transparent: true,
+                opacity: 0.4
+            },
+            // Gloves - could be latex/medical
+            gloves: {
+                color: 0xD4E5F7,
+                roughness: 0.4,
+                metalness: 0.0
+            },
+            // Fibers (hair strands) - transparent to show mouth
+            fibers: {
+                color: 0xDDD8D2,
+                roughness: 0.85,
+                metalness: 0.0,
+                transparent: true,
+                opacity: 0.4
+            },
+            // G_Part - hair colored (same as hair)
+            gPart: {
+                color: 0xE8E4E0,
+                roughness: 0.9,
+                metalness: 0.0
+            },
+            // Default - use skin color as fallback
+            default: {
+                color: 0xE8B89D,
+                roughness: 0.6,
+                metalness: 0.0
+            }
+        };
+
+        // Create procedural eye texture with iris, pupil, and sclera
+        function createEyeTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            const centerX = 128;
+            const centerY = 128;
+
+            // White sclera (background)
+            ctx.fillStyle = '#FAFAFA';
+            ctx.fillRect(0, 0, 256, 256);
+
+            // Add slight pink tint to edges (blood vessels)
+            const scleraGradient = ctx.createRadialGradient(centerX, centerY, 60, centerX, centerY, 128);
+            scleraGradient.addColorStop(0, 'rgba(255,255,255,0)');
+            scleraGradient.addColorStop(0.7, 'rgba(255,230,225,0.3)');
+            scleraGradient.addColorStop(1, 'rgba(255,220,210,0.5)');
+            ctx.fillStyle = scleraGradient;
+            ctx.fillRect(0, 0, 256, 256);
+
+            // Blue iris with gradient
+            const irisRadius = 55;
+            const irisGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, irisRadius);
+            irisGradient.addColorStop(0, '#5BA0E0');
+            irisGradient.addColorStop(0.3, '#4A90D0');
+            irisGradient.addColorStop(0.7, '#3A70B0');
+            irisGradient.addColorStop(1, '#2A5080');
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, irisRadius, 0, Math.PI * 2);
+            ctx.fillStyle = irisGradient;
+            ctx.fill();
+
+            // Iris detail - radial lines
+            ctx.save();
+            ctx.globalAlpha = 0.3;
+            for (let i = 0; i < 36; i++) {
+                const angle = (i / 36) * Math.PI * 2;
+                ctx.beginPath();
+                ctx.moveTo(centerX + Math.cos(angle) * 20, centerY + Math.sin(angle) * 20);
+                ctx.lineTo(centerX + Math.cos(angle) * irisRadius, centerY + Math.sin(angle) * irisRadius);
+                ctx.strokeStyle = i % 2 === 0 ? '#2A4060' : '#6AB0F0';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // Dark ring around iris
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, irisRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = '#1A3050';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Black pupil
+            const pupilRadius = 22;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, pupilRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#050505';
+            ctx.fill();
+
+            // Highlight/reflection (top-left)
+            ctx.beginPath();
+            ctx.arc(centerX - 15, centerY - 18, 12, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.fill();
+
+            // Smaller secondary highlight
+            ctx.beginPath();
+            ctx.arc(centerX + 20, centerY + 15, 6, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.fill();
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        }
+
+        // Map mesh names to material types based on console output
+        function getMaterialType(meshName) {
+            const name = meshName.toLowerCase();
+
+            // Exact matches from console log
+            if (name === 'hair') return 'hair';
+            if (name === 'brows') return 'brows';
+            if (name === 'moustache' || name === 'mustache') return 'mustache';
+            if (name === 'gloves') return 'gloves';
+            if (name.includes('fibers') || name.includes('fiber')) return 'fibers';
+
+            // G_Part_D and G_Part_E should be hair colored
+            if (name === 'g_part_d' || name === 'g_part_e') return 'gPart';
+
+            // Eyeglasses - EyeglassesFemale4 is likely the frame, others are lenses
+            if (name === 'eyeglassesfemale4') return 'glassesFrame';
+            if (name.includes('eyeglass')) return 'glassLens';
+
+            // Eye parts from Blender - Cornea, Sclera, Pupil, EyeMoisture
+            if (name.includes('cornea')) return 'cornea';
+            if (name.includes('sclera')) return 'sclera';
+            if (name.includes('pupil')) return 'pupil';
+            if (name.includes('iris')) return 'iris';
+            if (name.includes('eyemoisture') || name.includes('eye_moisture')) return 'eyeMoisture';
+
+            // Character/geometry parts are likely skin (including new mesh names)
+            if (name.includes('character') || name.includes('geometry')) return 'skin';
+
+            // New GLTF format: Mesh, Mesh_1, Mesh_2, etc. are skin/body parts
+            if (name === 'mesh' || name.match(/^mesh_\d+$/)) return 'skin';
+
+            return 'default';
+        }
+
+        function createMaterial(config, originalMaterial, isEye = false, eyeTexture = null) {
+            const mat = new THREE.MeshStandardMaterial({
+                color: config.color,
+                roughness: config.roughness,
+                metalness: config.metalness,
+                side: THREE.DoubleSide
+            });
+
+            // Apply eye texture if this is an eye mesh
+            if (isEye && eyeTexture) {
+                mat.map = eyeTexture;
+                mat.color = new THREE.Color(0xFFFFFF);
+            }
+
+            if (config.emissive) {
+                mat.emissive = new THREE.Color(config.emissive);
+                mat.emissiveIntensity = config.emissiveIntensity || 0.1;
+            }
+
+            if (config.transparent) {
+                mat.transparent = true;
+                mat.opacity = config.opacity;
+            }
+
+            // Preserve morph targets
+            if (originalMaterial) {
+                mat.morphTargets = originalMaterial.morphTargets;
+                mat.morphNormals = originalMaterial.morphNormals;
+            }
+
+            return mat;
+        }
+
+        // Check if mesh is an eye
+        function isEyeMesh(meshName) {
+            const name = meshName.toLowerCase();
+            // Look for eye-related mesh names - typically contains 'eye' but not 'eyeglass' or 'eyebrow'
+            if (name.includes('eyeglass') || name.includes('brow')) return false;
+            if (name.includes('eye') || name === 'sphere' || name.includes('cornea') || name.includes('sclera')) return true;
+            return false;
+        }
+
+        // Point cloud creation with morph target support and density control
+        function createPointCloudFromMesh(mesh, densityPercent = 100) {
+            const geometry = mesh.geometry;
+            const position = geometry.attributes.position;
+            const vertexCount = position.count;
+
+            // Calculate step based on density (100% = every vertex, 10% = every 10th)
+            const step = Math.max(1, Math.round(100 / densityPercent));
+
+            // Filter vertices - only keep front-facing ones (z > threshold) and apply density
+            const frontVertices = [];
+            const frontIndices = [];
+            const zThreshold = -0.02;
+
+            for (let i = 0; i < vertexCount; i += step) {
+                const z = position.getZ(i);
+                if (z >= zThreshold) {
+                    frontIndices.push(i);
+                    frontVertices.push(
+                        position.getX(i),
+                        position.getY(i),
+                        position.getZ(i)
+                    );
+                }
+            }
+
+            const filteredCount = frontIndices.length;
+
+            // Create point cloud geometry with filtered vertices
+            const pointGeometry = new THREE.BufferGeometry();
+            const positionArray = new Float32Array(frontVertices);
+            pointGeometry.setAttribute('position', new THREE.BufferAttribute(positionArray, 3));
+
+            // Store base positions for morph target animation
+            const basePositions = new Float32Array(frontVertices);
+
+            // Copy morph attributes if they exist (only for filtered vertices)
+            const morphDeltas = [];  // Store morph deltas (difference from base)
+            if (geometry.morphAttributes.position) {
+                for (let m = 0; m < geometry.morphAttributes.position.length; m++) {
+                    const morphAttr = geometry.morphAttributes.position[m];
+                    const filteredMorph = new Float32Array(filteredCount * 3);
+
+                    for (let i = 0; i < filteredCount; i++) {
+                        const origIndex = frontIndices[i];
+                        // Store the delta (morph position - base position)
+                        filteredMorph[i * 3] = morphAttr.getX(origIndex);
+                        filteredMorph[i * 3 + 1] = morphAttr.getY(origIndex);
+                        filteredMorph[i * 3 + 2] = morphAttr.getZ(origIndex);
+                    }
+
+                    morphDeltas.push(filteredMorph);
+                }
+            }
+
+            // Create colors based on mesh material
+            const colors = new Float32Array(filteredCount * 3);
+            const materialType = getMaterialType(mesh.name);
+            const config = materialConfig[materialType] || materialConfig.default;
+            const color = new THREE.Color(config.color);
+
+            for (let i = 0; i < filteredCount; i++) {
+                colors[i * 3] = color.r;
+                colors[i * 3 + 1] = color.g;
+                colors[i * 3 + 2] = color.b;
+            }
+            pointGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            // Create point material
+            const pointMaterial = new THREE.PointsMaterial({
+                size: pointSize * 0.01,
+                vertexColors: true,
+                sizeAttenuation: true,
+                transparent: true,
+                opacity: 0.9
+            });
+
+            // Create points object
+            const points = new THREE.Points(pointGeometry, pointMaterial);
+            points.name = mesh.name + '_points';
+
+            // Store data for morph animation
+            points.userData.originalMesh = mesh;
+            points.userData.densityPercent = densityPercent;
+            points.userData.basePositions = basePositions;
+            points.userData.morphDeltas = morphDeltas;
+            points.userData.vertexCount = filteredCount;
+
+            // Copy transform
+            points.position.copy(mesh.position);
+            points.rotation.copy(mesh.rotation);
+            points.scale.copy(mesh.scale);
+            points.matrixAutoUpdate = true;
+
+            console.log(`Point cloud ${mesh.name}: ${filteredCount}/${vertexCount} vertices (${densityPercent}% density), ${morphDeltas.length} morph targets`);
+
+            return points;
+        }
+
+        // Rebuild point clouds with new density
+        function rebuildPointClouds() {
+            // Remove existing point clouds
+            pointClouds.forEach(pc => {
+                if (pc.parent) pc.parent.remove(pc);
+                pc.geometry.dispose();
+                pc.material.dispose();
+            });
+            pointClouds = [];
+
+            // Recreate if in point cloud mode
+            if (currentRenderMode === 'points') {
+                model.traverse((obj) => {
+                    // Skip procedural eye meshes and point/wireframe objects
+                    const isEyePart = window.eyes && Object.values(window.eyes).includes(obj);
+                    if (obj.isMesh && !obj.name.includes('_points') && !obj.name.includes('_wireframe') && !isEyePart) {
+                        const pointCloud = createPointCloudFromMesh(obj, density);
+                        pointClouds.push(pointCloud);
+                        if (obj.parent) {
+                            obj.parent.add(pointCloud);
+                        } else {
+                            scene.add(pointCloud);
+                        }
+                        if (obj.morphTargetInfluences) {
+                            pointCloud.morphTargetInfluences = obj.morphTargetInfluences;
+                        }
+                        pointCloud.visible = true;
+                    }
+                });
+            }
+        }
+
+        // Create wireframe from mesh
+        function createWireframeFromMesh(mesh) {
+            const geometry = mesh.geometry;
+
+            // Create edges geometry for cleaner wireframe
+            const edgesGeometry = new THREE.EdgesGeometry(geometry, 15);
+
+            // Get color from material config
+            const materialType = getMaterialType(mesh.name);
+            const config = materialConfig[materialType] || materialConfig.default;
+            const color = new THREE.Color(config.color);
+
+            const lineMaterial = new THREE.LineBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            const wireframe = new THREE.LineSegments(edgesGeometry, lineMaterial);
+            wireframe.name = mesh.name + '_wireframe';
+
+            // Copy transform
+            wireframe.position.copy(mesh.position);
+            wireframe.rotation.copy(mesh.rotation);
+            wireframe.scale.copy(mesh.scale);
+
+            // Store reference to original mesh
+            wireframe.userData.originalMesh = mesh;
+
+            console.log(`Wireframe created for ${mesh.name}`);
+
+            return wireframe;
+        }
+
+        // Set render mode: 'mesh', 'points', 'wireframe'
+        function setRenderMode(mode) {
+            currentRenderMode = mode;
+            isPointCloudMode = (mode === 'points');
+            isWireframeMode = (mode === 'wireframe');
+
+            const btnMesh = document.getElementById('btnMesh');
+            const btnPoints = document.getElementById('btnPoints');
+            const btnWireframe = document.getElementById('btnWireframe');
+            const pointSettings = document.getElementById('pointCloudSettings');
+            const wireSettings = document.getElementById('wireframeSettings');
+
+            // Reset button styles
+            [btnMesh, btnPoints, btnWireframe].forEach(btn => {
+                btn.style.background = '#37474f';
+                btn.style.color = '#fff';
+            });
+
+            // Hide all settings
+            pointSettings.style.display = 'none';
+            wireSettings.style.display = 'none';
+
+            // Highlight active button and show relevant settings
+            if (mode === 'mesh') {
+                btnMesh.style.background = '#4fc3f7';
+                btnMesh.style.color = '#000';
+            } else if (mode === 'points') {
+                btnPoints.style.background = '#ff7043';
+                btnPoints.style.color = '#000';
+                pointSettings.style.display = 'block';
+            } else if (mode === 'wireframe') {
+                btnWireframe.style.background = '#ab47bc';
+                btnWireframe.style.color = '#000';
+                wireSettings.style.display = 'block';
+            }
+
+            // Update visibility
+            model.traverse((obj) => {
+                // Skip procedural eye meshes
+                const isEyePart = window.eyes && Object.values(window.eyes).includes(obj);
+                if (obj.isMesh && !obj.name.includes('_points') && !obj.name.includes('_wireframe') && !isEyePart) {
+                    // Store original material if not stored
+                    if (!originalMaterials.has(obj.uuid)) {
+                        originalMaterials.set(obj.uuid, obj.material);
+                    }
+
+                    if (mode === 'mesh') {
+                        obj.visible = true;
+                        // Restore original material
+                        if (originalMaterials.has(obj.uuid)) {
+                            obj.material = originalMaterials.get(obj.uuid);
+                        }
+                    } else if (mode === 'points') {
+                        obj.visible = false;
+
+                        // Create point cloud if not exists
+                        let pointCloud = pointClouds.find(p => p.name === obj.name + '_points');
+                        if (!pointCloud) {
+                            pointCloud = createPointCloudFromMesh(obj, density);
+                            pointClouds.push(pointCloud);
+                            if (obj.parent) {
+                                obj.parent.add(pointCloud);
+                            } else {
+                                scene.add(pointCloud);
+                            }
+                            if (obj.morphTargetInfluences) {
+                                pointCloud.morphTargetInfluences = obj.morphTargetInfluences;
+                            }
+                        }
+                        pointCloud.visible = true;
+                    } else if (mode === 'wireframe') {
+                        obj.visible = false;
+
+                        // Create wireframe if not exists
+                        let wireframe = wireframeMeshes.find(w => w.name === obj.name + '_wireframe');
+                        if (!wireframe) {
+                            wireframe = createWireframeFromMesh(obj);
+                            wireframeMeshes.push(wireframe);
+                            if (obj.parent) {
+                                obj.parent.add(wireframe);
+                            } else {
+                                scene.add(wireframe);
+                            }
+                        }
+                        wireframe.visible = true;
+                    }
+                }
+            });
+
+            // Hide point clouds when not in points mode
+            if (mode !== 'points') {
+                pointClouds.forEach(pc => pc.visible = false);
+            }
+
+            // Hide wireframes when not in wireframe mode
+            if (mode !== 'wireframe') {
+                wireframeMeshes.forEach(wf => wf.visible = false);
+            }
+
+            // Handle 3D eyes visibility
+            if (window.eyes) {
+                const showEyes = (mode === 'mesh');
+                Object.values(window.eyes).forEach(part => part.visible = showEyes);
+            }
+        }
+
+        function updatePointSize(size) {
+            pointSize = size;
+            pointClouds.forEach(pc => {
+                pc.material.size = size * 0.01;
+            });
+        }
+
+        // Preset animation definitions - will be populated dynamically based on available morphs
+        let presetAnimations = {};
+        let isTalking = false;
+        let talkAnimationId = null;
+
+        // Build presets based on available morph targets
+        function buildPresets() {
+            const allMorphs = new Set();
+            morphMeshes.forEach(mesh => {
+                Object.keys(mesh.morphTargetDictionary || {}).forEach(name => allMorphs.add(name));
+            });
+
+            const morphList = Array.from(allMorphs);
+            console.log('Building presets from morphs:', morphList);
+
+            // Find morphs by partial name match (case insensitive)
+            function findMorph(keywords) {
+                for (const keyword of keywords) {
+                    const found = morphList.find(m => m.toLowerCase().includes(keyword.toLowerCase()));
+                    if (found) return found;
+                }
+                return null;
+            }
+
+            // Build dynamic presets based on what's available
+            presetAnimations = {
+                neutral: {},  // All morphs at 0
+                smile: {},
+                surprised: {},
+                sad: {},
+                angry: {},
+                talk: {}
+            };
+
+            // Smile preset
+            const smileMorphs = ['smile', 'happy', 'cheek'];
+            morphList.forEach(m => {
+                const lower = m.toLowerCase();
+                if (lower.includes('smile') || lower.includes('happy')) {
+                    presetAnimations.smile[m] = 0.8;
+                }
+                if (lower.includes('cheek') && lower.includes('squint')) {
+                    presetAnimations.smile[m] = 0.3;
+                }
+            });
+
+            // Surprised preset
+            morphList.forEach(m => {
+                const lower = m.toLowerCase();
+                if (lower.includes('wide') || lower.includes('open')) {
+                    presetAnimations.surprised[m] = 0.7;
+                }
+                if (lower.includes('brow') && (lower.includes('up') || lower.includes('raise'))) {
+                    presetAnimations.surprised[m] = 0.6;
+                }
+                if (lower.includes('jaw')) {
+                    presetAnimations.surprised[m] = 0.4;
+                }
+            });
+
+            // Sad preset
+            morphList.forEach(m => {
+                const lower = m.toLowerCase();
+                if (lower.includes('frown') || lower.includes('sad')) {
+                    presetAnimations.sad[m] = 0.6;
+                }
+                if (lower.includes('brow') && lower.includes('inner')) {
+                    presetAnimations.sad[m] = 0.5;
+                }
+            });
+
+            // Angry preset
+            morphList.forEach(m => {
+                const lower = m.toLowerCase();
+                if (lower.includes('brow') && lower.includes('down')) {
+                    presetAnimations.angry[m] = 0.7;
+                }
+                if (lower.includes('squint')) {
+                    presetAnimations.angry[m] = 0.5;
+                }
+                if (lower.includes('sneer')) {
+                    presetAnimations.angry[m] = 0.4;
+                }
+            });
+
+            console.log('Built presets:', presetAnimations);
+        }
+
+        // Set morph value directly
+        function setMorphValue(morphName, value) {
+            morphMeshes.forEach(mesh => {
+                const index = mesh.morphTargetDictionary?.[morphName];
+                if (index !== undefined) {
+                    mesh.morphTargetInfluences[index] = value;
+                }
+            });
+
+            // Update slider UI
+            const slider = document.getElementById(`slider-${morphName}`);
+            const valueDisplay = document.getElementById(`val-${morphName}`);
+            if (slider) slider.value = value;
+            if (valueDisplay) valueDisplay.textContent = Math.round(value * 100) + '%';
+        }
+
+        // Apply a preset animation with smooth transition
+        function applyPreset(presetName) {
+            console.log('Applying preset:', presetName);
+
+            // Stop talking animation if running
+            if (isTalking && presetName !== 'talk') {
+                isTalking = false;
+                if (talkAnimationId) {
+                    cancelAnimationFrame(talkAnimationId);
+                    talkAnimationId = null;
+                }
+            }
+
+            if (presetName === 'talk') {
+                startTalkingAnimation();
+                return;
+            }
+
+            const preset = presetAnimations[presetName] || {};
+
+            // Get all morph names
+            const allMorphs = new Set();
+            morphMeshes.forEach(mesh => {
+                Object.keys(mesh.morphTargetDictionary || {}).forEach(name => allMorphs.add(name));
+            });
+
+            // Apply preset values (or 0 for morphs not in preset)
+            allMorphs.forEach(morphName => {
+                const targetValue = preset[morphName] || 0;
+                animateMorph(morphName, targetValue, 300);
+            });
+        }
+
+        // Animate a single morph target smoothly
+        function animateMorph(morphName, targetValue, duration) {
+            const startTime = performance.now();
+            let startValue = 0;
+
+            // Get current value
+            morphMeshes.forEach(mesh => {
+                const index = mesh.morphTargetDictionary?.[morphName];
+                if (index !== undefined) {
+                    startValue = mesh.morphTargetInfluences[index];
+                }
+            });
+
+            function update() {
+                const elapsed = performance.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+                const currentValue = startValue + (targetValue - startValue) * eased;
+
+                // Apply to all meshes and update UI
+                setMorphValue(morphName, currentValue);
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+
+            update();
+        }
+
+        // Talking animation - cycles through mouth shapes
+        function startTalkingAnimation() {
+            if (isTalking) {
+                isTalking = false;
+                if (talkAnimationId) {
+                    cancelAnimationFrame(talkAnimationId);
+                }
+                // Reset to neutral
+                applyPreset('neutral');
+                return;
+            }
+
+            isTalking = true;
+            let phase = 0;
+
+            // Find mouth-related morphs
+            const mouthMorphs = [];
+            morphMeshes.forEach(mesh => {
+                Object.keys(mesh.morphTargetDictionary || {}).forEach(name => {
+                    const lower = name.toLowerCase();
+                    if (lower.includes('mouth') || lower.includes('jaw') ||
+                        lower.includes('lip') || lower.includes('viseme') ||
+                        lower.includes('open') || lower.includes('pucker')) {
+                        if (!mouthMorphs.includes(name)) {
+                            mouthMorphs.push(name);
+                        }
+                    }
+                });
+            });
+
+            console.log('Talk animation using morphs:', mouthMorphs);
+
+            function animateTalk() {
+                if (!isTalking) return;
+
+                phase += 0.06;  // Slower, more natural pace
+
+                mouthMorphs.forEach((morphName, i) => {
+                    // Create varied, natural movement for each morph
+                    const offset = i * 0.5;
+                    const speed = 0.8 + (i % 3) * 0.2;
+                    const value = (Math.sin(phase * speed + offset) * 0.5 + 0.5) * 0.5;
+
+                    setMorphValue(morphName, value);
+                });
+
+                talkAnimationId = requestAnimationFrame(animateTalk);
+            }
+
+            animateTalk();
+        }
+
+        // Create 3D eyes with sclera, iris, and pupil matching Blender model
+        function createEyes(model) {
+            // Eye positions - perfectly positioned behind glasses
+            const eyeY = 0.935;   // At glasses level
+            const eyeZ = 0.23;   // Perfect distance - visible but behind glasses
+            const eyeSpacing = 0.07;
+
+            // Optimized sizes for realistic proportions
+            const scleraRadius = 0.048;  // Eyeball size
+            const irisRadius = 0.024;    // Full iris size
+            const pupilRadius = 0.012;   // Pupil size
+            const irisRingInner = 0.0121; // Start right at pupil edge (no gap)
+
+            console.log('Creating enhanced eyes to match Blender model...');
+
+            // Eyelid material - skin colored to match face
+            const eyelidMaterial = new THREE.MeshStandardMaterial({
+                color: 0xE8B89D,  // Skin tone
+                roughness: 0.7,
+                metalness: 0.0,
+                side: THREE.DoubleSide,
+                depthTest: true,
+                depthWrite: true
+            });
+
+            // Realistic white sclera - using MeshBasicMaterial to prevent lighting interference
+            const scleraMaterial = new THREE.MeshBasicMaterial({
+                color: 0xFFFFFF,  // Pure white
+                side: THREE.FrontSide,
+                depthTest: true,
+                depthWrite: true
+            });
+
+            // Natural gray-blue iris - using MeshBasicMaterial for consistent color
+            const irisMaterial = new THREE.MeshBasicMaterial({
+                color: 0x5A7A8A, // Darker gray-blue
+                side: THREE.FrontSide,
+                depthTest: true,
+                depthWrite: true
+            });
+
+            // Inner iris - slightly darker gray-blue
+            const innerIrisMaterial = new THREE.MeshBasicMaterial({
+                color: 0x4A6A7A, // Even darker gray-blue for inner iris
+                side: THREE.FrontSide,
+                depthTest: true,
+                depthWrite: true
+            });
+
+            // Deep dark pupil (not pure black)
+            const pupilMaterial = new THREE.MeshBasicMaterial({
+                color: 0x1A1A1A,  // Very dark gray instead of pure black
+                side: THREE.FrontSide,
+                depthTest: true,
+                depthWrite: true
+            });
+
+            // Red ring around pupil for detail
+            const pupilRingMaterial = new THREE.MeshBasicMaterial({
+                color: 0x8B4513,  // Brown ring around pupil for realism
+                side: THREE.FrontSide,
+                depthTest: true,
+                depthWrite: true
+            });
+
+            // Glossy cornea layer for realistic shine
+            const corneaMaterial = new THREE.MeshBasicMaterial({
+                color: 0xFFFFFF,
+                transparent: true,
+                opacity: 0.15,
+                side: THREE.FrontSide,
+                depthTest: true,
+                depthWrite: false
+            });
+
+            // Iris ring for depth
+            const irisRingMaterial = new THREE.MeshBasicMaterial({
+                color: 0x3A5A6A, // Darker gray-blue ring
+                side: THREE.FrontSide,
+                depthTest: true,
+                depthWrite: true
+            });
+
+
+
+            // Geometries with higher detail
+            const scleraGeometry = new THREE.SphereGeometry(scleraRadius, 32, 32);
+            const irisGeometry = new THREE.CircleGeometry(irisRadius, 32);
+            const innerIrisGeometry = new THREE.RingGeometry(pupilRadius, irisRingInner, 32); // Fill the gap
+            const irisRingGeometry = new THREE.RingGeometry(irisRingInner, irisRadius, 32);
+            const pupilGeometry = new THREE.CircleGeometry(pupilRadius, 32);
+            const corneaGeometry = new THREE.SphereGeometry(scleraRadius * 1.01, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+
+            // Eyelid geometries - curved surfaces that wrap around the eye
+            const lidRadius = scleraRadius * 1.15;  // Slightly larger than eyeball
+            const upperLidGeometry = new THREE.SphereGeometry(
+                lidRadius, 32, 16,
+                0, Math.PI * 2,  // Full circle horizontally
+                0, Math.PI * 0.4  // Upper portion only
+            );
+            const lowerLidGeometry = new THREE.SphereGeometry(
+                lidRadius, 32, 16,
+                0, Math.PI * 2,  // Full circle horizontally
+                Math.PI * 0.6, Math.PI * 0.4  // Lower portion only
+            );
+
+            // LEFT EYE
+            const leftSclera = new THREE.Mesh(scleraGeometry, scleraMaterial);
+            leftSclera.position.set(-eyeSpacing, eyeY, eyeZ);
+
+            const leftIris = new THREE.Mesh(irisGeometry, irisMaterial);
+            leftIris.position.set(-eyeSpacing, eyeY, eyeZ + scleraRadius - 0.003);
+
+            const leftInnerIris = new THREE.Mesh(innerIrisGeometry, innerIrisMaterial);
+            leftInnerIris.position.set(-eyeSpacing, eyeY, eyeZ + scleraRadius - 0.0025);
+
+            const leftIrisRing = new THREE.Mesh(irisRingGeometry, irisRingMaterial);
+            leftIrisRing.position.set(-eyeSpacing, eyeY, eyeZ + scleraRadius - 0.002);
+
+            const leftPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+            leftPupil.position.set(-eyeSpacing, eyeY, eyeZ + scleraRadius + 0.001);
+
+            const leftCornea = new THREE.Mesh(corneaGeometry, corneaMaterial);
+            leftCornea.position.set(-eyeSpacing, eyeY, eyeZ);
+            leftCornea.rotation.x = -Math.PI / 2;
+
+            // Left eyelids - START IN CLOSED POSITION
+            // NOTE: Swapping geometries because they're inverted
+            const leftUpperLid = new THREE.Mesh(lowerLidGeometry, eyelidMaterial);  // Use LOWER geometry for upper lid
+            leftUpperLid.position.set(-eyeSpacing, eyeY + scleraRadius * 0.1, eyeZ);  // Start higher (closed)
+            leftUpperLid.rotation.x = -Math.PI / 2;
+
+            const leftLowerLid = new THREE.Mesh(upperLidGeometry, eyelidMaterial.clone());  // Use UPPER geometry for lower lid
+            leftLowerLid.position.set(-eyeSpacing, eyeY - scleraRadius * 0.1, eyeZ);  // Start lower (closed)
+            leftLowerLid.rotation.x = -Math.PI / 2;
+            leftLowerLid.rotation.x = -Math.PI / 2;
+
+            // RIGHT EYE
+            const rightSclera = new THREE.Mesh(scleraGeometry, scleraMaterial.clone());
+            rightSclera.position.set(eyeSpacing, eyeY, eyeZ);
+
+            const rightIris = new THREE.Mesh(irisGeometry, irisMaterial.clone());
+            rightIris.position.set(eyeSpacing, eyeY, eyeZ + scleraRadius - 0.003);
+
+            const rightInnerIris = new THREE.Mesh(innerIrisGeometry, innerIrisMaterial.clone());
+            rightInnerIris.position.set(eyeSpacing, eyeY, eyeZ + scleraRadius - 0.0025);
+
+            const rightIrisRing = new THREE.Mesh(irisRingGeometry, irisRingMaterial.clone());
+            rightIrisRing.position.set(eyeSpacing, eyeY, eyeZ + scleraRadius - 0.002);
+
+            const rightPupil = new THREE.Mesh(pupilGeometry, pupilMaterial.clone());
+            rightPupil.position.set(eyeSpacing, eyeY, eyeZ + scleraRadius + 0.001);
+
+            const rightCornea = new THREE.Mesh(corneaGeometry, corneaMaterial.clone());
+            rightCornea.position.set(eyeSpacing, eyeY, eyeZ);
+            rightCornea.rotation.x = -Math.PI / 2;
+
+            // Right eyelids - START IN CLOSED POSITION
+            // NOTE: Swapping geometries because they're inverted
+            const rightUpperLid = new THREE.Mesh(lowerLidGeometry.clone(), eyelidMaterial.clone());  // Use LOWER geometry for upper lid
+            rightUpperLid.position.set(eyeSpacing, eyeY + scleraRadius * 0.1, eyeZ);  // Start higher (closed)
+            rightUpperLid.rotation.x = -Math.PI / 2;
+
+            const rightLowerLid = new THREE.Mesh(upperLidGeometry.clone(), eyelidMaterial.clone());  // Use UPPER geometry for lower lid
+            rightLowerLid.position.set(eyeSpacing, eyeY - scleraRadius * 0.1, eyeZ);  // Start lower (closed)
+            rightLowerLid.rotation.x = -Math.PI / 2;
+            rightLowerLid.rotation.x = -Math.PI / 2;
+
+            // Mark eyes as procedural so they're not overridden by material processing
+            // Also freeze the materials to prevent any modifications
+            leftSclera.userData.proceduralEye = true;
+            leftIris.userData.proceduralEye = true;
+            leftInnerIris.userData.proceduralEye = true;
+            leftIrisRing.userData.proceduralEye = true;
+            leftPupil.userData.proceduralEye = true;
+            leftCornea.userData.proceduralEye = true;
+            leftUpperLid.userData.proceduralEye = true;
+            leftLowerLid.userData.proceduralEye = true;
+            rightSclera.userData.proceduralEye = true;
+            rightIris.userData.proceduralEye = true;
+            rightInnerIris.userData.proceduralEye = true;
+            rightIrisRing.userData.proceduralEye = true;
+            rightPupil.userData.proceduralEye = true;
+            rightCornea.userData.proceduralEye = true;
+            rightUpperLid.userData.proceduralEye = true;
+            rightLowerLid.userData.proceduralEye = true;
+
+            // Force material updates
+            scleraMaterial.needsUpdate = true;
+            irisMaterial.needsUpdate = true;
+            innerIrisMaterial.needsUpdate = true;
+            irisRingMaterial.needsUpdate = true;
+            pupilMaterial.needsUpdate = true;
+            corneaMaterial.needsUpdate = true;
+            eyelidMaterial.needsUpdate = true;
+
+            // Set render order - eyelids MUST render LAST to occlude eye parts properly
+            // Eyes render first (lower numbers), eyelids render last (highest numbers)
+            leftSclera.renderOrder = 995;
+            leftIris.renderOrder = 996;
+            leftInnerIris.renderOrder = 997;
+            leftIrisRing.renderOrder = 998;
+            leftPupil.renderOrder = 999;
+            leftCornea.renderOrder = 1000;
+            leftUpperLid.renderOrder = 1010;  // Eyelids render LAST
+            leftLowerLid.renderOrder = 1010;
+            rightSclera.renderOrder = 995;
+            rightIris.renderOrder = 996;
+            rightInnerIris.renderOrder = 997;
+            rightIrisRing.renderOrder = 998;
+            rightPupil.renderOrder = 999;
+            rightCornea.renderOrder = 1000;
+            rightUpperLid.renderOrder = 1010;  // Eyelids render LAST
+            rightLowerLid.renderOrder = 1010;
+            rightInnerIris.renderOrder = 1001;
+            rightIrisRing.renderOrder = 1002;
+            rightPupil.renderOrder = 1003;
+            rightCornea.renderOrder = 1004;
+            rightUpperLid.renderOrder = 1005;
+            rightLowerLid.renderOrder = 1005;
+
+            // Add eyes to the MODEL (not scene) so they move with the head
+            model.add(leftSclera);
+            model.add(leftIris);
+            model.add(leftInnerIris);
+            model.add(leftIrisRing);
+            model.add(leftPupil);
+            model.add(leftCornea);
+            model.add(leftUpperLid);
+            model.add(leftLowerLid);
+            model.add(rightSclera);
+            model.add(rightIris);
+            model.add(rightInnerIris);
+            model.add(rightIrisRing);
+            model.add(rightPupil);
+            model.add(rightCornea);
+            model.add(rightUpperLid);
+            model.add(rightLowerLid);
+
+            // Store references for animation
+            window.eyes = {
+                leftSclera, leftIris, leftInnerIris, leftIrisRing, leftPupil, leftCornea,
+                leftUpperLid, leftLowerLid,
+                rightSclera, rightIris, rightInnerIris, rightIrisRing, rightPupil, rightCornea,
+                rightUpperLid, rightLowerLid,
+                eyeY, scleraRadius, eyeSpacing, eyeZ
+            };
+
+            // Start with eyelids visible - eyes closed
+            leftUpperLid.visible = true;
+            leftLowerLid.visible = true;
+            rightUpperLid.visible = true;
+            rightLowerLid.visible = true;
+
+            console.log('✓ Enhanced eyes created and added to MODEL');
+            console.log('Eye positions (relative to model):', {
+                left: { x: -eyeSpacing, y: eyeY, z: eyeZ },
+                right: { x: eyeSpacing, y: eyeY, z: eyeZ }
+            });
+            console.log('Eye materials:', {
+                sclera: scleraMaterial.color.getHexString(),
+                iris: irisMaterial.color.getHexString(),
+                pupil: pupilMaterial.color.getHexString()
+            });
+            console.log('Eyes starting CLOSED - eyelids visible');
+        }
+
+        // Animate eyes opening naturally (upper lid moves up, lower lid moves down slightly)
+        function animateEyeOpening() {
+            if (!window.eyes) {
+                console.log('Eyes not ready yet');
+                return;
+            }
+
+            const duration = 8000; // 8 seconds for slower, more visible eye opening animation
+            const startTime = Date.now();
+
+            const {
+                leftUpperLid, leftLowerLid, rightUpperLid, rightLowerLid,
+                leftIris, leftInnerIris, leftIrisRing, leftPupil,
+                rightIris, rightInnerIris, rightIrisRing, rightPupil,
+                eyeY, scleraRadius
+            } = window.eyes;
+
+            // Starting positions (CLOSED - eyelids meeting in middle)
+            const upperStartY = eyeY + scleraRadius * 0.1;  // Upper lid starts at middle
+            const lowerStartY = eyeY - scleraRadius * 0.1;  // Lower lid starts at middle
+
+            // Ending positions (OPEN - eyelids moved apart)
+            const upperEndY = eyeY + scleraRadius * 1.2;  // Upper lid moves UP significantly
+            const lowerEndY = eyeY - scleraRadius * 1.2;  // Lower lid moves DOWN significantly
+
+            // Create clipping planes to reveal iris/pupil gradually
+            // Upper clipping plane (clips from top)
+            const upperClipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), eyeY);
+            // Lower clipping plane (clips from bottom)
+            const lowerClipPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -eyeY);
+
+            // Apply clipping to iris and pupil materials
+            const irisComponents = [
+                leftIris, leftInnerIris, leftIrisRing, leftPupil,
+                rightIris, rightInnerIris, rightIrisRing, rightPupil
+            ];
+
+            irisComponents.forEach(component => {
+                component.material.clippingPlanes = [upperClipPlane, lowerClipPlane];
+                component.material.clipShadows = true;
+                component.material.needsUpdate = true;
+            });
+
+            // Enable clipping in the renderer
+            if (window.renderer) {
+                window.renderer.localClippingEnabled = true;
+            }
+
+            console.log('🎬 Starting eye-opening animation with clipping...');
+            console.log('Upper lid: from', upperStartY, 'to', upperEndY);
+            console.log('Lower lid: from', lowerStartY, 'to', lowerEndY);
+            console.log('Iris/pupil will be clipped and revealed gradually');
+
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // Ease-out cubic for smooth, natural opening
+                const eased = 1 - Math.pow(1 - progress, 3);
+
+                // Calculate current positions - GRADUAL movement from closed to open
+                const currentUpperY = upperStartY + (upperEndY - upperStartY) * eased;
+                const currentLowerY = lowerStartY + (lowerEndY - lowerStartY) * eased;
+
+                // Calculate scale - eyelids compress/shrink as they open
+                // Start at scale 1.0 (full size), end at scale 0.1 (thin line)
+                const lidScale = 1.0 - (eased * 0.9);
+
+                // Log progress every 10% to verify animation is running
+                if (Math.floor(progress * 10) !== Math.floor((progress - 0.01) * 10)) {
+                    console.log(`Animation progress: ${Math.floor(progress * 100)}% - Upper Y: ${currentUpperY.toFixed(3)}, Lower Y: ${currentLowerY.toFixed(3)}`);
+                }
+
+                // Update eyelid positions AND scale - BOTH eyelids move to create natural opening
+                // Upper lids move UP
+                leftUpperLid.position.y = currentUpperY;
+                rightUpperLid.position.y = currentUpperY;
+                leftUpperLid.scale.y = lidScale;  // Compress vertically
+                rightUpperLid.scale.y = lidScale;
+
+                // Lower lids move DOWN  
+                leftLowerLid.position.y = currentLowerY;
+                rightLowerLid.position.y = currentLowerY;
+                leftLowerLid.scale.y = lidScale;  // Compress vertically
+                rightLowerLid.scale.y = lidScale;
+
+                // Update clipping planes to match eyelid positions
+                // This reveals the iris/pupil gradually as eyelids open
+                upperClipPlane.constant = -currentUpperY;  // Clips everything above this Y
+                lowerClipPlane.constant = currentLowerY;   // Clips everything below this Y
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    console.log('✓ Eyes fully opened');
+
+                    // Remove clipping planes after animation completes
+                    irisComponents.forEach(component => {
+                        component.material.clippingPlanes = [];
+                        component.material.needsUpdate = true;
+                    });
+
+                    // Hide eyelids after opening to show clean eyes
+                    setTimeout(() => {
+                        leftUpperLid.visible = false;
+                        leftLowerLid.visible = false;
+                        rightUpperLid.visible = false;
+                        rightLowerLid.visible = false;
+                        console.log('✓ Eyelids hidden - eyes fully visible');
+
+                        // Start random blinking after eyes are fully opened
+                        startRandomBlinking();
+                    }, 300);
+                }
+            }
+
+            animate();
+        }
+
+        // Blink animation - quick close and open of eyelids
+        function blinkEyes() {
+            if (!window.eyes) {
+                console.log('Eyes not ready for blinking');
+                return;
+            }
+
+            const {
+                leftUpperLid, leftLowerLid, rightUpperLid, rightLowerLid,
+                leftIris, leftInnerIris, leftIrisRing, leftPupil,
+                rightIris, rightInnerIris, rightIrisRing, rightPupil,
+                eyeY, scleraRadius
+            } = window.eyes;
+
+            // Make eyelids visible for blinking
+            leftUpperLid.visible = true;
+            leftLowerLid.visible = true;
+            rightUpperLid.visible = true;
+            rightLowerLid.visible = true;
+
+            const blinkDuration = 800; // Slower blink - 400ms per phase (800ms total)
+            const startTime = Date.now();
+
+            // Open positions (where eyelids are when eyes are open)
+            const upperOpenY = eyeY + scleraRadius * 1.2;
+            const lowerOpenY = eyeY - scleraRadius * 1.2;
+
+            // Closed positions (eyelids meet in middle)
+            const upperClosedY = eyeY + scleraRadius * 0.1;
+            const lowerClosedY = eyeY - scleraRadius * 0.1;
+
+            // Create clipping planes for gradual reveal/hide
+            const upperClipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), eyeY);
+            const lowerClipPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -eyeY);
+
+            // Apply clipping to iris and pupil materials
+            const irisComponents = [
+                leftIris, leftInnerIris, leftIrisRing, leftPupil,
+                rightIris, rightInnerIris, rightIrisRing, rightPupil
+            ];
+
+            irisComponents.forEach(component => {
+                component.material.clippingPlanes = [upperClipPlane, lowerClipPlane];
+                component.material.clipShadows = true;
+                component.material.needsUpdate = true;
+            });
+
+            let isClosing = true;
+
+            function animateBlink() {
+                const elapsed = Date.now() - startTime;
+                const phaseElapsed = isClosing ? elapsed : (elapsed - blinkDuration);
+                const progress = Math.min(phaseElapsed / blinkDuration, 1);
+
+                // Ease-out cubic (same as opening animation)
+                const eased = 1 - Math.pow(1 - progress, 3);
+
+                let currentUpperY, currentLowerY, lidScale;
+
+                if (isClosing) {
+                    // Closing: move from open to closed (REVERSE of opening)
+                    currentUpperY = upperOpenY + (upperClosedY - upperOpenY) * eased;
+                    currentLowerY = lowerOpenY + (lowerClosedY - lowerOpenY) * eased;
+                    // Scale grows as eyes close (reverse of opening)
+                    lidScale = 0.1 + (0.9 * eased);
+                } else {
+                    // Opening: move from closed to open (SAME as initial opening)
+                    currentUpperY = upperClosedY + (upperOpenY - upperClosedY) * eased;
+                    currentLowerY = lowerClosedY + (lowerOpenY - lowerClosedY) * eased;
+                    // Scale shrinks as eyes open
+                    lidScale = 1.0 - (0.9 * eased);
+                }
+
+                // Update eyelid positions AND scale
+                leftUpperLid.position.y = currentUpperY;
+                rightUpperLid.position.y = currentUpperY;
+                leftUpperLid.scale.y = lidScale;
+                rightUpperLid.scale.y = lidScale;
+
+                leftLowerLid.position.y = currentLowerY;
+                rightLowerLid.position.y = currentLowerY;
+                leftLowerLid.scale.y = lidScale;
+                rightLowerLid.scale.y = lidScale;
+
+                // Update clipping planes to match eyelid positions
+                // This hides/reveals the iris/pupil gradually
+                upperClipPlane.constant = -currentUpperY;
+                lowerClipPlane.constant = currentLowerY;
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateBlink);
+                } else if (isClosing) {
+                    // Switch to opening phase
+                    isClosing = false;
+                    requestAnimationFrame(animateBlink);
+                } else {
+                    // Blink complete - remove clipping and hide eyelids
+                    irisComponents.forEach(component => {
+                        component.material.clippingPlanes = [];
+                        component.material.needsUpdate = true;
+                    });
+
+                    setTimeout(() => {
+                        leftUpperLid.visible = false;
+                        leftLowerLid.visible = false;
+                        rightUpperLid.visible = false;
+                        rightLowerLid.visible = false;
+                    }, 50);
+                }
+            }
+
+            animateBlink();
+        }
+
+        // Start random blinking after eyes are opened
+        function startRandomBlinking() {
+            // First blink happens sooner
+            setTimeout(() => {
+                console.log('👁️ First blink...');
+                blinkEyes();
+                // Then start regular random blinking
+                scheduleNextBlink();
+            }, 1000); // First blink after 1 second
+
+            function scheduleNextBlink() {
+                // Random interval between 2-6 seconds
+                const nextBlinkDelay = 2000 + Math.random() * 4000;
+
+                setTimeout(() => {
+                    console.log('👁️ Blinking...');
+                    blinkEyes();
+                    scheduleNextBlink(); // Schedule the next blink
+                }, nextBlinkDelay);
+            }
+
+            console.log('✓ Random blinking started');
+        }
+
+        // Hand animation system - BONE-BASED (not mesh-based)
+        function animateHands() {
+            if (!window.handBones || window.handBones.length === 0 || !window.handBoneOriginalTransforms) {
+                return;
+            }
+
+            const time = Date.now() * 0.001; // Convert to seconds
+
+            // Debug: Log what bones we're animating
+            if (Math.floor(time) % 5 === 0 && time % 1 < 0.1) { // Log every 5 seconds
+                console.log('🤚 Animating hand bones:', window.handBones.map(b => b.name));
+            }
+
+            window.handBones.forEach((handBone, index) => {
+                const original = window.handBoneOriginalTransforms.get(handBone.uuid);
+                if (!original) {
+                    console.warn('⚠️ No original transform for bone:', handBone.name);
+                    return;
+                }
+
+                // Different animation for each hand bone
+                const offset = index * Math.PI * 0.5; // Phase offset for variety
+
+                // Gentle floating/swaying motion using rotation (bones use rotation, not position)
+                // Bones control the mesh through rotation, so we animate rotation
+                const rotateX = Math.sin(time * 0.5 + offset) * 0.15; // Pitch (up/down tilt)
+                const rotateY = Math.cos(time * 0.4 + offset) * 0.12; // Yaw (left/right turn)
+                const rotateZ = Math.sin(time * 0.6 + offset) * 0.10; // Roll (twist)
+
+                // Apply rotations RELATIVE to original rotation using quaternions
+                // This is the proper way to animate bones in Three.js
+                const euler = new THREE.Euler(
+                    original.rotation.x + rotateX,
+                    original.rotation.y + rotateY,
+                    original.rotation.z + rotateZ,
+                    'XYZ'
+                );
+
+                handBone.quaternion.setFromEuler(euler);
+
+                // Debug: Log rotation changes for first bone
+                if (index === 0 && Math.floor(time * 10) % 50 === 0) {
+                    console.log(`🔄 ${handBone.name} rotation: x=${rotateX.toFixed(3)}, y=${rotateY.toFixed(3)}, z=${rotateZ.toFixed(3)}`);
+                }
+            });
+        }
+
+        // Hair animation system - natural wind-like movement
+        function animateHair() {
+            if (!window.hairMeshes || window.hairMeshes.length === 0 || !window.hairOriginalPositions) {
+                return;
+            }
+
+            const time = Date.now() * 0.001; // Convert to seconds
+
+            window.hairMeshes.forEach((hairMesh) => {
+                const positions = hairMesh.geometry.attributes.position;
+                const originalPos = window.hairOriginalPositions.get(hairMesh.uuid);
+
+                if (!originalPos) {
+                    console.warn('⚠️ No original positions for hair mesh:', hairMesh.name);
+                    return;
+                }
+
+                // Natural wind-like hair movement
+                // Hair moves in waves, with different frequencies for natural look
+                for (let i = 0; i < positions.count; i++) {
+                    const origX = originalPos[i * 3];
+                    const origY = originalPos[i * 3 + 1];
+                    const origZ = originalPos[i * 3 + 2];
+
+                    // Height-based movement - hair at top moves more than at roots
+                    const heightFactor = Math.max(0, (origY + 1) / 2); // Normalize height influence
+
+                    // Multiple wave frequencies for natural look
+                    const wave1 = Math.sin(time * 0.8 + origX * 3 + origZ * 2) * 0.008 * heightFactor;
+                    const wave2 = Math.cos(time * 0.6 + origX * 2 - origZ * 3) * 0.006 * heightFactor;
+                    const wave3 = Math.sin(time * 0.4 + origY * 1.5) * 0.004 * heightFactor;
+
+                    // Gentle swaying motion
+                    const swayX = Math.sin(time * 0.5 + origZ * 1.5) * 0.010 * heightFactor;
+                    const swayZ = Math.cos(time * 0.5 + origX * 1.5) * 0.010 * heightFactor;
+
+                    // Slight vertical bob
+                    const bobY = Math.sin(time * 0.7 + origX + origZ) * 0.003 * heightFactor;
+
+                    // Apply natural hair movement
+                    positions.setXYZ(
+                        i,
+                        origX + wave1 + swayX,
+                        origY + wave2 + bobY,
+                        origZ + wave3 + swayZ
+                    );
+                }
+
+                positions.needsUpdate = true;
+            });
+        }
+
+        // Gesture animation - more dramatic hand movements
+        function playHandGesture(gestureType = 'wave') {
+            if (!window.handMeshes || window.handMeshes.length === 0) {
+                console.log('No hand meshes found for gesture');
+                return;
+            }
+
+            const duration = 2000; // 2 seconds
+            const startTime = Date.now();
+
+            // Store original positions and rotations
+            const originalTransforms = window.handMeshes.map(mesh => ({
+                position: mesh.position.clone(),
+                rotation: mesh.rotation.clone()
+            }));
+
+            function animateGesture() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // Ease in-out
+                const eased = progress < 0.5
+                    ? 2 * progress * progress
+                    : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+                window.handMeshes.forEach((handMesh, index) => {
+                    const original = originalTransforms[index];
+
+                    if (gestureType === 'wave') {
+                        // Wave gesture - hands move up and rotate
+                        const waveHeight = Math.sin(progress * Math.PI * 4) * 0.1 * eased;
+                        const waveRotation = Math.sin(progress * Math.PI * 6) * 0.3 * eased;
+
+                        handMesh.position.y = original.position.y + waveHeight;
+                        handMesh.rotation.z = original.rotation.z + waveRotation;
+
+                    } else if (gestureType === 'point') {
+                        // Pointing gesture - hands extend forward
+                        const pointDistance = eased * 0.15;
+                        const pointRotation = eased * 0.2;
+
+                        handMesh.position.z = original.position.z + pointDistance;
+                        handMesh.rotation.x = original.rotation.x - pointRotation;
+
+                    } else if (gestureType === 'clap') {
+                        // Clapping gesture - hands come together
+                        const clapPhase = Math.sin(progress * Math.PI * 3);
+                        const clapDistance = clapPhase * 0.08 * eased;
+
+                        if (index % 2 === 0) {
+                            handMesh.position.x = original.position.x - clapDistance;
+                        } else {
+                            handMesh.position.x = original.position.x + clapDistance;
+                        }
+                    }
+                });
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateGesture);
+                } else {
+                    // Return to original positions
+                    window.handMeshes.forEach((handMesh, index) => {
+                        const original = originalTransforms[index];
+                        handMesh.position.copy(original.position);
+                        handMesh.rotation.copy(original.rotation);
+                    });
+                    console.log(`✓ ${gestureType} gesture completed`);
+                }
+            }
+
+            console.log(`🤚 Playing ${gestureType} gesture...`);
+            animateGesture();
+        }
+
+        // Start random hand gestures
+        function startRandomHandGestures() {
+            if (!window.handMeshes || window.handMeshes.length === 0) {
+                console.log('No hand meshes found - skipping hand gestures');
+                return;
+            }
+
+            function scheduleNextGesture() {
+                // Random interval between 8-15 seconds
+                const nextGestureDelay = 8000 + Math.random() * 7000;
+
+                setTimeout(() => {
+                    const gestures = ['wave', 'point', 'clap'];
+                    const randomGesture = gestures[Math.floor(Math.random() * gestures.length)];
+                    playHandGesture(randomGesture);
+                    scheduleNextGesture();
+                }, nextGestureDelay);
+            }
+
+            // Start gesture cycle after 5 seconds
+            setTimeout(() => {
+                scheduleNextGesture();
+                console.log('✓ Random hand gestures started');
+            }, 5000);
+        }
+
+        // Create procedural 3D eyeballs and add them to the model
+        function createProcedural3DEyes(model, eyeTexture) {
+            // Eye material with the procedural texture
+            const eyeMaterial = new THREE.MeshStandardMaterial({
+                map: eyeTexture,
+                roughness: 0.1,
+                metalness: 0.0
+            });
+
+            // Glossy outer layer for realism
+            const corneaMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                roughness: 0.0,
+                metalness: 0.0,
+                transparent: true,
+                opacity: 0.3
+            });
+
+            // Eyelid material - skin colored
+            const eyelidMaterial = new THREE.MeshStandardMaterial({
+                color: 0xE8B89D,
+                roughness: 0.65,
+                metalness: 0.0,
+                side: THREE.DoubleSide
+            });
+
+            const eyeRadius = 0.028;  // Larger eyes
+            const eyeGeometry = new THREE.SphereGeometry(eyeRadius, 32, 32);
+            const corneaGeometry = new THREE.SphereGeometry(eyeRadius * 1.02, 32, 32);
+
+            // Adjusted positions - lowered to fit face
+            const eyeY = 1.05;
+            const eyeZ = 0.0;
+            const eyeSpacing = 0.05;
+
+            // Create eyelid geometry (curved surface that covers the eye)
+            const lidRadius = eyeRadius * 1.12;
+            const upperLidGeometry = new THREE.SphereGeometry(
+                lidRadius, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.4
+            );
+            const lowerLidGeometry = new THREE.SphereGeometry(
+                lidRadius, 32, 16, 0, Math.PI * 2, Math.PI * 0.6, Math.PI * 0.4
+            );
+
+            // Left eye
+            const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            leftEye.position.set(-eyeSpacing, eyeY, eyeZ);
+            leftEye.rotation.y = Math.PI;
+
+            const leftCornea = new THREE.Mesh(corneaGeometry, corneaMaterial);
+            leftCornea.position.copy(leftEye.position);
+
+            // Left eyelids
+            const leftUpperLid = new THREE.Mesh(upperLidGeometry, eyelidMaterial);
+            leftUpperLid.position.set(-eyeSpacing, eyeY, eyeZ);
+
+            const leftLowerLid = new THREE.Mesh(lowerLidGeometry, eyelidMaterial.clone());
+            leftLowerLid.position.set(-eyeSpacing, eyeY, eyeZ);
+
+            // Right eye
+            const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial.clone());
+            rightEye.position.set(eyeSpacing, eyeY, eyeZ);
+            rightEye.rotation.y = Math.PI;
+
+            const rightCornea = new THREE.Mesh(corneaGeometry, corneaMaterial.clone());
+            rightCornea.position.copy(rightEye.position);
+
+            // Right eyelids
+            const rightUpperLid = new THREE.Mesh(upperLidGeometry.clone(), eyelidMaterial.clone());
+            rightUpperLid.position.set(eyeSpacing, eyeY, eyeZ);
+
+            const rightLowerLid = new THREE.Mesh(lowerLidGeometry.clone(), eyelidMaterial.clone());
+            rightLowerLid.position.set(eyeSpacing, eyeY, eyeZ);
+
+            // Add all to scene
+            scene.add(leftEye);
+            scene.add(leftCornea);
+            scene.add(leftUpperLid);
+            scene.add(leftLowerLid);
+            scene.add(rightEye);
+            scene.add(rightCornea);
+            scene.add(rightUpperLid);
+            scene.add(rightLowerLid);
+
+            console.log('Procedural 3D eyes with eyelids added at Y:', eyeY);
+
+            // Store references for animation
+            window.procEyes = {
+                left: leftEye,
+                right: rightEye,
+                leftCornea,
+                rightCornea,
+                leftUpperLid,
+                leftLowerLid,
+                rightUpperLid,
+                rightLowerLid,
+                eyeY,
+                lidRadius,
+                // Blink function - value from 0 (open) to 1 (closed)
+                blink: function (value) {
+                    // Scale eyelids vertically to simulate closing
+                    // Upper lid moves down, lower lid moves up
+                    const upperScale = 1 + value * 1.5;
+                    const lowerScale = 1 + value * 0.8;
+
+                    leftUpperLid.scale.y = upperScale;
+                    rightUpperLid.scale.y = upperScale;
+                    leftLowerLid.scale.y = lowerScale;
+                    rightLowerLid.scale.y = lowerScale;
+
+                    // Also move lids toward center
+                    const upperOffset = value * 0.012;
+                    const lowerOffset = value * 0.006;
+
+                    leftUpperLid.position.y = eyeY - upperOffset;
+                    rightUpperLid.position.y = eyeY - upperOffset;
+                    leftLowerLid.position.y = eyeY + lowerOffset;
+                    rightLowerLid.position.y = eyeY + lowerOffset;
+                }
+            };
+        }
+
+        const loader = new GLTFLoader();
+
+        // Set up DRACOLoader for compressed meshes (if available)
+        if (DRACOLoader) {
+            const dracoLoader = new DRACOLoader();
+            dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+            loader.setDRACOLoader(dracoLoader);
+            console.log('DRACOLoader initialized successfully');
+        } else {
+            console.warn('DRACOLoader not available - loading without compression');
+        }
+
+        loader.load(
+            './Doctor-Character.gltf',
+            (gltf) => {
+                model = gltf.scene;
+
+                // Center and scale model
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+
+                model.position.x = -center.x;
+                model.position.y = -box.min.y;
+                model.position.z = -center.z;
+
+                scene.add(model);
+
+                // Create eye texture once
+                const eyeTexture = createEyeTexture();
+
+                // Create 3D eyes and add them to the model
+                createEyes(model);
+
+                // Start eye-opening animation after 5 seconds
+                setTimeout(() => {
+                    console.log('⏰ 3 seconds passed - starting eye-opening animation');
+                    animateEyeOpening();
+                }, 6000);
+
+                // Start hand gestures after model is loaded
+                startRandomHandGestures();
+
+                // Apply materials based on mesh names
+                model.traverse((obj) => {
+                    // Check for bones/skeleton FIRST
+                    if (obj.isBone) {
+                        console.log('🦴 Bone found:', obj.name);
+                    }
+
+                    // Check for skinned meshes (rigged characters)
+                    if (obj.isSkinnedMesh) {
+                        console.log('💀 SkinnedMesh found:', obj.name, 'with', obj.skeleton.bones.length, 'bones');
+
+                        // Initialize hand bone storage
+                        if (!window.handBones) window.handBones = [];
+                        if (!window.handBoneOriginalTransforms) window.handBoneOriginalTransforms = new Map();
+
+                        obj.skeleton.bones.forEach(bone => {
+                            const boneName = bone.name.toLowerCase();
+                            console.log('  └─ Bone:', bone.name);
+
+                            // Look for hand bones specifically (not fingers, just the main hand bones)
+                            if (boneName.includes('hand') && !boneName.includes('finger')) {
+                                console.log('    ✓ HAND BONE FOUND:', bone.name);
+
+                                // Store the bone and its original transform
+                                window.handBones.push(bone);
+                                window.handBoneOriginalTransforms.set(bone.uuid, {
+                                    position: bone.position.clone(),
+                                    rotation: bone.rotation.clone(),
+                                    quaternion: bone.quaternion.clone()
+                                });
+
+                                console.log('    📍 Stored bone:', bone.name, 'position:', bone.position, 'rotation:', bone.rotation);
+                            }
+                        });
+                    }
+
+                    if (obj.isMesh) {
+                        // Log ALL mesh names to find hand meshes
+                        console.log('📦 Mesh found:', obj.name, 'Type:', obj.type);
+
+                        // Skip procedural eyes - they have their own materials
+                        if (obj.userData.proceduralEye) {
+                            console.log('✓ Skipping procedural eye mesh (protected):', obj.uuid);
+                            return;
+                        }
+
+                        obj.frustumCulled = false;
+                        obj.castShadow = true;
+                        obj.receiveShadow = true;
+
+                        const materialType = getMaterialType(obj.name);
+                        const config = materialConfig[materialType];
+                        const isEye = isEyeMesh(obj.name);
+
+                        console.log(`Mesh: ${obj.name} → Material: ${materialType}${isEye ? ' (EYE)' : ''}`);
+
+                        // Capture mustache/fiber meshes for animation
+                        const nameLower = obj.name.toLowerCase();
+                        if (nameLower.includes('moustache') || nameLower.includes('mustache') ||
+                            nameLower.includes('fiber')) {
+                            fiberMeshes.push(obj);
+                            // Store original vertex positions for animation
+                            const positions = obj.geometry.attributes.position;
+                            const originalPos = new Float32Array(positions.array.length);
+                            originalPos.set(positions.array);
+                            fiberOriginalPositions.set(obj.uuid, originalPos);
+                            console.log('✓ Fiber/mustache mesh found:', obj.name, 'vertices:', positions.count);
+                        }
+
+                        // Capture hair meshes for animation
+                        if (nameLower === 'hair' || nameLower.includes('hair')) {
+                            if (!window.hairMeshes) window.hairMeshes = [];
+                            if (!window.hairOriginalPositions) window.hairOriginalPositions = new Map();
+
+                            window.hairMeshes.push(obj);
+                            // Store original vertex positions for animation
+                            const positions = obj.geometry.attributes.position;
+                            const originalPos = new Float32Array(positions.array.length);
+                            originalPos.set(positions.array);
+                            window.hairOriginalPositions.set(obj.uuid, originalPos);
+                            console.log('✓ Hair mesh found:', obj.name, 'vertices:', positions.count);
+                        }
+
+                        // Capture hand meshes for animation - expanded detection
+                        if (nameLower === 'gloves' || nameLower === 'g_part_d' || nameLower === 'g_part_e' ||
+                            nameLower.includes('hand') || nameLower.includes('arm') ||
+                            nameLower.includes('finger') || nameLower.includes('palm') ||
+                            nameLower.includes('wrist') || nameLower.includes('sleeve')) {
+                            if (!window.handMeshes) window.handMeshes = [];
+                            if (!window.handOriginalTransforms) window.handOriginalTransforms = new Map();
+
+                            // Store original transform
+                            window.handOriginalTransforms.set(obj.uuid, {
+                                position: obj.position.clone(),
+                                rotation: obj.rotation.clone()
+                            });
+
+                            window.handMeshes.push(obj);
+                            console.log('✓ Hand/arm mesh found:', obj.name, 'nameLower:', nameLower);
+                        }
+
+                        // Also check for variations of gloves name
+                        if (nameLower.includes('glove')) {
+                            if (!window.handMeshes) window.handMeshes = [];
+                            if (!window.handOriginalTransforms) window.handOriginalTransforms = new Map();
+
+                            // Store original transform
+                            window.handOriginalTransforms.set(obj.uuid, {
+                                position: obj.position.clone(),
+                                rotation: obj.rotation.clone()
+                            });
+
+                            window.handMeshes.push(obj);
+                            console.log('✓ Gloves mesh found (includes):', obj.name, 'nameLower:', nameLower);
+                        }
+
+                        // Debug: Log ALL mesh names to see what's available
+                        if (nameLower.includes('g_') || nameLower.includes('hand') ||
+                            nameLower.includes('arm') || nameLower.includes('glove')) {
+                            console.log('🔍 Potential hand mesh:', obj.name, 'nameLower:', nameLower);
+                        }
+
+                        const newMaterial = createMaterial(config, obj.material, isEye, eyeTexture);
+
+                        // Preserve morph target influences
+                        if (obj.morphTargetDictionary && Object.keys(obj.morphTargetDictionary).length > 0) {
+                            newMaterial.morphTargets = true;
+                            newMaterial.morphNormals = true;
+                            morphMeshes.push(obj);
+                        }
+
+                        obj.material = newMaterial;
+                    }
+                });
+
+                // Adjust camera to fit model
+                const maxDim = Math.max(size.x, size.y, size.z);
+                camera.position.set(0, size.y * 0.6, maxDim * 1.8);
+                camera.lookAt(0, size.y * 0.5, 0);
+
+                createMorphControls();
+                buildPresets();  // Build preset animations based on available morphs
+
+                if (gltf.animations && gltf.animations.length > 0) {
+                    mixer = new THREE.AnimationMixer(model);
+                    console.log('Animations:', gltf.animations.map(a => a.name));
+                    gltf.animations.forEach((clip) => {
+                        mixer.clipAction(clip).play();
+                    });
+                }
+            },
+            (progress) => {
+                const percent = (progress.loaded / progress.total * 100).toFixed(1);
+                console.log(`Loading: ${percent}%`);
+            },
+            (error) => console.error('Error:', error)
+        );
+
+        function createMorphControls() {
+            const container = document.getElementById('morphControls');
+            container.innerHTML = '';
+
+            const allMorphs = new Set();
+            morphMeshes.forEach(mesh => {
+                Object.keys(mesh.morphTargetDictionary).forEach(name => allMorphs.add(name));
+            });
+
+            // Log available morphs for debugging
+            console.log('Available morph targets:', Array.from(allMorphs));
+
+            if (allMorphs.size === 0) {
+                container.innerHTML = '<p style="color:#78909c">No morph targets found</p>';
+                return;
+            }
+
+            // Store morph names globally for preset animations
+            window.availableMorphs = Array.from(allMorphs);
+
+            // Sort morphs alphabetically
+            const sortedMorphs = Array.from(allMorphs).sort();
+
+            sortedMorphs.forEach(morphName => {
+                const wrapper = document.createElement('div');
+
+                const label = document.createElement('label');
+                label.innerHTML = `${morphName} <span class="slider-value" id="val-${morphName}">0%</span>`;
+
+                const slider = document.createElement('input');
+                slider.type = 'range';
+                slider.min = '0';
+                slider.max = '1';
+                slider.step = '0.01';
+                slider.value = '0';
+                slider.id = `slider-${morphName}`;
+
+                slider.addEventListener('input', (e) => {
+                    const value = parseFloat(e.target.value);
+                    document.getElementById(`val-${morphName}`).textContent = Math.round(value * 100) + '%';
+
+                    morphMeshes.forEach(mesh => {
+                        const index = mesh.morphTargetDictionary[morphName];
+                        if (index !== undefined) {
+                            mesh.morphTargetInfluences[index] = value;
+                        }
+                    });
+
+                    // Connect EyeBlink to procedural eyes
+                    // (Removed - no longer using procedural eyes)
+                });
+
+                wrapper.appendChild(label);
+                wrapper.appendChild(slider);
+                container.appendChild(wrapper);
+            });
+        }
+
+        // Camera orbit controls
+        let isDragging = false;
+        let previousMouse = { x: 0, y: 0 };
+        let spherical = { theta: 0, phi: Math.PI / 2.2 };
+        let targetLookAt = new THREE.Vector3(0, 1.2, 0);
+        let cameraRadius = 2.8;
+
+        function updateCameraPosition() {
+            camera.position.x = cameraRadius * Math.sin(spherical.phi) * Math.sin(spherical.theta);
+            camera.position.y = cameraRadius * Math.cos(spherical.phi) + 1.2;
+            camera.position.z = cameraRadius * Math.sin(spherical.phi) * Math.cos(spherical.theta);
+            camera.lookAt(targetLookAt);
+        }
+
+        renderer.domElement.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            previousMouse = { x: e.clientX, y: e.clientY };
+        });
+
+        window.addEventListener('mouseup', () => isDragging = false);
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+
+            const deltaX = e.clientX - previousMouse.x;
+            const deltaY = e.clientY - previousMouse.y;
+
+            spherical.theta -= deltaX * 0.005;
+            spherical.phi = Math.max(0.5, Math.min(Math.PI - 0.5, spherical.phi + deltaY * 0.005));
+
+            updateCameraPosition();
+            previousMouse = { x: e.clientX, y: e.clientY };
+        });
+
+        // Zoom with mouse wheel
+        renderer.domElement.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            cameraRadius = Math.max(1.5, Math.min(6, cameraRadius + e.deltaY * 0.003));
+            updateCameraPosition();
+        }, { passive: false });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
+
+            // Animate fiber/mustache meshes based on mouth movement (Mesh mode)
+            if (fiberMeshes.length > 0 && currentRenderMode === 'mesh') {
+                let mouthActivity = 0;
+
+                // Check mouth-related morph targets
+                morphMeshes.forEach(mesh => {
+                    const dict = mesh.morphTargetDictionary || {};
+                    const influences = mesh.morphTargetInfluences || [];
+
+                    Object.keys(dict).forEach(name => {
+                        const lower = name.toLowerCase();
+                        if (lower.includes('mouth') || lower.includes('jaw') ||
+                            lower.includes('lip') || lower.includes('viseme') ||
+                            lower.includes('open') || lower.includes('smile') ||
+                            lower.includes('frown') || lower.includes('pucker')) {
+                            const value = influences[dict[name]] || 0;
+                            mouthActivity = Math.max(mouthActivity, value);
+                        }
+                    });
+                });
+
+                // Animate fiber vertices with smooth, natural movement
+                const time = performance.now() * 0.001;
+
+                fiberMeshes.forEach(mesh => {
+                    const positions = mesh.geometry.attributes.position;
+                    const originalPos = fiberOriginalPositions.get(mesh.uuid);
+
+                    if (originalPos && mouthActivity > 0.01) {
+                        for (let i = 0; i < positions.count; i++) {
+                            const origX = originalPos[i * 3];
+                            const origY = originalPos[i * 3 + 1];
+                            const origZ = originalPos[i * 3 + 2];
+
+                            // Smooth, natural wave animation - slower frequencies
+                            const wave1 = Math.sin(time * 3 + origX * 20 + i * 0.02) * mouthActivity * 0.012;
+                            const wave2 = Math.cos(time * 2.5 + origY * 15) * mouthActivity * 0.008;
+                            const wave3 = Math.sin(time * 2 + origZ * 10) * mouthActivity * 0.006;
+                            const lift = mouthActivity * 0.015;
+
+                            positions.setXYZ(
+                                i,
+                                origX + wave1,
+                                origY + wave2 + lift,
+                                origZ + wave3
+                            );
+                        }
+                        positions.needsUpdate = true;
+                    } else if (originalPos && mouthActivity <= 0.01) {
+                        // Reset to original positions when not talking
+                        positions.array.set(originalPos);
+                        positions.needsUpdate = true;
+                    }
+                });
+            }
+
+            // Get mouth activity for mustache animation
+            let mouthActivity = 0;
+            morphMeshes.forEach(mesh => {
+                const dict = mesh.morphTargetDictionary || {};
+                const influences = mesh.morphTargetInfluences || [];
+
+                Object.keys(dict).forEach(name => {
+                    const lower = name.toLowerCase();
+                    if (lower.includes('mouth') || lower.includes('jaw') ||
+                        lower.includes('lip') || lower.includes('viseme') ||
+                        lower.includes('open') || lower.includes('smile') ||
+                        lower.includes('frown') || lower.includes('pucker')) {
+                        const value = influences[dict[name]] || 0;
+                        mouthActivity = Math.max(mouthActivity, value);
+                    }
+                });
+            });
+
+            // Update point cloud positions based on morph targets
+            if (isPointCloudMode) {
+                const time = performance.now() * 0.001;
+
+                pointClouds.forEach(pointCloud => {
+                    const mesh = pointCloud.userData.originalMesh;
+                    const basePositions = pointCloud.userData.basePositions;
+                    const morphDeltas = pointCloud.userData.morphDeltas;
+                    const vertexCount = pointCloud.userData.vertexCount;
+
+                    if (!mesh || !basePositions) return;
+
+                    const positions = pointCloud.geometry.attributes.position;
+                    const meshName = mesh.name.toLowerCase();
+                    const isFiber = meshName.includes('fiber') || meshName.includes('moustache') || meshName.includes('mustache');
+
+                    // Calculate new positions
+                    for (let i = 0; i < vertexCount; i++) {
+                        let x = basePositions[i * 3];
+                        let y = basePositions[i * 3 + 1];
+                        let z = basePositions[i * 3 + 2];
+
+                        // Add morph target contributions (if available)
+                        if (morphDeltas && morphDeltas.length > 0 && mesh.morphTargetInfluences) {
+                            for (let m = 0; m < morphDeltas.length; m++) {
+                                const influence = mesh.morphTargetInfluences[m] || 0;
+                                if (influence > 0.001) {
+                                    x += morphDeltas[m][i * 3] * influence;
+                                    y += morphDeltas[m][i * 3 + 1] * influence;
+                                    z += morphDeltas[m][i * 3 + 2] * influence;
+                                }
+                            }
+                        }
+
+                        // Add mustache shake animation for fiber meshes - smooth and natural
+                        if (isFiber && mouthActivity > 0.01) {
+                            // Natural wave animation - slightly faster for Points mode
+                            const wave1 = Math.sin(time * 5 + x * 25 + i * 0.02) * mouthActivity * 0.015;
+                            const wave2 = Math.cos(time * 4 + y * 20) * mouthActivity * 0.010;
+                            const wave3 = Math.sin(time * 3.5 + z * 15) * mouthActivity * 0.008;
+                            const lift = mouthActivity * 0.015;
+
+                            x += wave1;
+                            y += wave2 + lift;
+                            z += wave3;
+                        }
+
+                        positions.setXYZ(i, x, y, z);
+                    }
+                    positions.needsUpdate = true;
+                });
+            }
+
+            // Animate hands with gentle floating motion
+            animateHands();
+
+            // Animate hair with natural wind-like movement
+            animateHair();
+
+            renderer.render(scene, camera);
+        }
+
+        // Setup UI event listeners
+        document.getElementById('btnMesh').addEventListener('click', () => setRenderMode('mesh'));
+        document.getElementById('btnPoints').addEventListener('click', () => setRenderMode('points'));
+        document.getElementById('btnWireframe').addEventListener('click', () => setRenderMode('wireframe'));
+
+        document.getElementById('pointSizeSlider').addEventListener('input', (e) => {
+            const size = parseFloat(e.target.value);
+            document.getElementById('val-pointSize').textContent = size;
+            updatePointSize(size);
+        });
+
+        document.getElementById('densitySlider').addEventListener('input', (e) => {
+            density = parseInt(e.target.value);
+            document.getElementById('val-density').textContent = density + '%';
+            rebuildPointClouds();
+        });
+
+        document.getElementById('lineWidthSlider').addEventListener('input', (e) => {
+            const width = parseFloat(e.target.value);
+            document.getElementById('val-lineWidth').textContent = width;
+            lineWidth = width;
+        });
+
+        document.getElementById('mustacheOpacitySlider').addEventListener('input', (e) => {
+            const opacity = parseInt(e.target.value) / 100;
+            document.getElementById('val-mustacheOpacity').textContent = e.target.value + '%';
+
+            // Update opacity of fiber meshes
+            fiberMeshes.forEach(mesh => {
+                if (mesh.material) {
+                    mesh.material.opacity = opacity;
+                    mesh.material.transparent = true;
+                    mesh.material.needsUpdate = true;
+                }
+            });
+        });
+
+        // Preset animation buttons
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const preset = btn.dataset.preset;
+                applyPreset(preset);
+
+                // Update button styles
+                document.querySelectorAll('.preset-btn').forEach(b => {
+                    b.style.opacity = '0.7';
+                });
+                btn.style.opacity = '1';
+            });
+        });
+
+        animate();
+
+        // ============================================
+        // ElevenLabs Voice Integration with Lip Sync
+        // ============================================
+
+        class VoiceSyncManager {
+            constructor() {
+                this.audioContext = null;
+                this.analyser = null;
+                this.dataArray = null;
+                this.isPlaying = false;
+                this.isSpeaking = false;
+
+                // Multiple API keys for rotation
+                this.apiKeys = [
+                    'sk_12b90b0befc2c32d5e3b72bc61934aca73ab4493c45163e7', // Original working key
+
+                    // Add more API keys here:
+                    // 'sk_your_second_api_key_here',
+                    // 'sk_your_third_api_key_here',
+                ];
+                this.currentKeyIndex = 0;
+
+                this.voiceId = 'JBFqnCBsd6RMkjVDRZzb'; // George voice (works on free tier)
+                this.modelId = 'eleven_multilingual_v2'; // Free tier compatible model
+                this.source = null;
+
+                // Mouth morph targets for lip sync
+                this.mouthMorphs = {
+                    jawOpen: null,
+                    mouthOpen: null,
+                    mouthSmile: null,
+                    mouthPucker: null,
+                    lipPucker: null,
+                    mouthNarrow: null
+                };
+
+                this.initMouthMorphs();
+            }
+
+            initMouthMorphs() {
+                // Find mouth-related morph targets
+                if (!morphMeshes.length) {
+                    setTimeout(() => this.initMouthMorphs(), 500);
+                    return;
+                }
+
+                morphMeshes.forEach(mesh => {
+                    const dict = mesh.morphTargetDictionary || {};
+                    Object.keys(dict).forEach(name => {
+                        const lower = name.toLowerCase();
+                        if (lower.includes('jawopen') || lower.includes('jaw_open')) {
+                            this.mouthMorphs.jawOpen = name;
+                        } else if (lower.includes('mouthopen') || lower.includes('mouth_open')) {
+                            this.mouthMorphs.mouthOpen = name;
+                        } else if (lower.includes('mouthsmile') || lower.includes('smile')) {
+                            this.mouthMorphs.mouthSmile = name;
+                        } else if (lower.includes('mouthpucker') || lower.includes('pucker')) {
+                            this.mouthMorphs.mouthPucker = name;
+                        } else if (lower.includes('lippucker') || lower.includes('lip')) {
+                            this.mouthMorphs.lipPucker = name;
+                        } else if (lower.includes('mouthnarrow') || lower.includes('narrow')) {
+                            this.mouthMorphs.mouthNarrow = name;
+                        }
+                    });
+                });
+
+                console.log('Mouth morphs initialized:', this.mouthMorphs);
+            }
+
+            async initAudio() {
+                if (!this.audioContext) {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.analyser = this.audioContext.createAnalyser();
+                    this.analyser.fftSize = 256;
+                    this.analyser.smoothingTimeConstant = 0.8;
+                    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                }
+
+                if (this.audioContext.state === 'suspended') {
+                    await this.audioContext.resume();
+                }
+            }
+
+            getCurrentApiKey() {
+                return this.apiKeys[this.currentKeyIndex];
+            }
+
+            rotateToNextKey() {
+                this.currentKeyIndex = (this.currentKeyIndex + 1) % this.apiKeys.length;
+                console.log(`Rotated to API key ${this.currentKeyIndex + 1}/${this.apiKeys.length}`);
+            }
+
+            async speak(text) {
+                console.log('🔊 TTS: Starting to speak:', text.substring(0, 50) + '...');
+
+                if (this.apiKeys.length === 0) {
+                    console.error('🔊 TTS: No API keys available');
+                    updateVoiceStatus('No API keys available', 'error');
+                    return;
+                }
+
+                if (this.isPlaying) {
+                    console.log('🔊 TTS: Already playing, stopping current speech');
+                    this.stop();
+                    return;
+                }
+
+                updateVoiceStatus('Generating speech...', 'speaking');
+
+                // Try all API keys before giving up
+                let lastError = null;
+                const startKeyIndex = this.currentKeyIndex;
+
+                do {
+                    try {
+                        await this.initAudio();
+
+                        const currentKey = this.getCurrentApiKey();
+                        console.log(`🔊 TTS: Trying API key ${this.currentKeyIndex + 1}/${this.apiKeys.length}`);
+
+                        // Call ElevenLabs TTS API
+                        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${this.voiceId}`, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'audio/mpeg',
+                                'Content-Type': 'application/json',
+                                'xi-api-key': currentKey
+                            },
+                            body: JSON.stringify({
+                                text: text,
+                                model_id: this.modelId,
+                                voice_settings: {
+                                    stability: 0.5,
+                                    similarity_boost: 0.75
+                                }
+                            })
+                        });
+
+                        if (response.ok) {
+                            console.log('🔊 TTS: API call successful, playing audio...');
+                            const audioBlob = await response.blob();
+                            await this.playWithLipSync(audioBlob);
+                            console.log('🔊 TTS: Speech completed successfully');
+                            return; // Success!
+                        } else {
+                            const error = await response.json().catch(() => ({}));
+                            const errorMsg = error.detail?.message || error.detail?.status || `API Error: ${response.status}`;
+                            lastError = new Error(errorMsg);
+
+                            console.warn(`🔊 TTS: Key ${this.currentKeyIndex + 1} failed: ${errorMsg}`);
+
+                            // Check if it's a free tier abuse detection error
+                            if (errorMsg.includes('Unusual activity') || errorMsg.includes('Free Tier usage disabled')) {
+                                console.error('🔊 TTS: ElevenLabs free tier blocked - unusual activity detected');
+                                console.log('💡 TIP: You need a paid ElevenLabs subscription or use a different API key');
+                                this.rotateToNextKey();
+                            }
+                            // If quota exceeded or unauthorized, try next key
+                            else if (response.status === 401 || errorMsg.includes('quota') || errorMsg.includes('credits')) {
+                                this.rotateToNextKey();
+                            } else {
+                                throw lastError; // Other errors, don't rotate
+                            }
+                        }
+
+                    } catch (error) {
+                        lastError = error;
+                        console.error(`🔊 TTS: API key ${this.currentKeyIndex + 1} error:`, error.message);
+
+                        // If it's a quota/auth error, try next key
+                        if (error.message.includes('quota') || error.message.includes('credits') || error.message.includes('401')) {
+                            this.rotateToNextKey();
+                        } else {
+                            break; // Network or other errors, don't rotate
+                        }
+                    }
+
+                } while (this.currentKeyIndex !== startKeyIndex); // Stop when we've tried all keys
+
+                // All keys failed, show error
+                console.error('🔊 TTS: All ElevenLabs API keys failed:', lastError?.message);
+
+                // Check if it's the free tier abuse issue
+                if (lastError?.message?.includes('Unusual activity') || lastError?.message?.includes('Free Tier usage disabled')) {
+                    updateVoiceStatus('ElevenLabs free tier blocked. Need paid subscription.', 'error');
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    console.log('⚠️  ELEVENLABS FREE TIER BLOCKED');
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    console.log('The free tier has been disabled due to unusual activity.');
+                    console.log('');
+                    console.log('OPTIONS:');
+                    console.log('1. Get a paid ElevenLabs subscription ($5/month)');
+                    console.log('2. Use a different ElevenLabs account with a new API key');
+                    console.log('3. Wait 24 hours and try again');
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                } else {
+                    updateVoiceStatus(`TTS Error: ${lastError?.message || 'All API keys failed'}`, 'error');
+                }
+
+                setTimeout(() => updateVoiceStatus('Click mic to talk'), 5000);
+            }
+
+            async playWithLipSync(audioBlob) {
+                const arrayBuffer = await audioBlob.arrayBuffer();
+                const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+
+                // Create source and connect to analyser
+                this.source = this.audioContext.createBufferSource();
+                this.source.buffer = audioBuffer;
+                this.source.connect(this.analyser);
+                this.analyser.connect(this.audioContext.destination);
+
+                this.isPlaying = true;
+                this.isSpeaking = true;
+                updateVoiceStatus('Speaking...', 'speaking');
+
+                // Start lip sync animation
+                this.animateMouth();
+
+                this.source.onended = () => {
+                    this.isPlaying = false;
+                    this.isSpeaking = false;
+                    this.resetMouth();
+                    updateVoiceStatus('Click mic to talk');
+                };
+
+                this.source.start(0);
+            }
+
+            animateMouth() {
+                if (!this.isSpeaking) return;
+
+                this.analyser.getByteFrequencyData(this.dataArray);
+
+                // Analyze frequency bands
+                const bufferLength = this.analyser.frequencyBinCount;
+
+                // Low frequencies (bass) - jaw movement
+                let lowSum = 0;
+                for (let i = 0; i < bufferLength * 0.2; i++) {
+                    lowSum += this.dataArray[i];
+                }
+                const lowAvg = lowSum / (bufferLength * 0.2) / 255;
+
+                // Mid frequencies - lip movement
+                let midSum = 0;
+                for (let i = Math.floor(bufferLength * 0.2); i < bufferLength * 0.6; i++) {
+                    midSum += this.dataArray[i];
+                }
+                const midAvg = midSum / (bufferLength * 0.4) / 255;
+
+                // High frequencies - subtle expressions
+                let highSum = 0;
+                for (let i = Math.floor(bufferLength * 0.6); i < bufferLength; i++) {
+                    highSum += this.dataArray[i];
+                }
+                const highAvg = highSum / (bufferLength * 0.4) / 255;
+
+                // Overall volume
+                const volume = (lowAvg + midAvg + highAvg) / 3;
+
+                // Map to morph targets with smoothing
+                const jawValue = Math.min(lowAvg * 1.5, 0.8);
+                const mouthOpenValue = Math.min(volume * 1.8, 0.7);
+                const puckerValue = Math.min(midAvg * 0.8, 0.4);
+                const smileValue = Math.min(highAvg * 0.5, 0.3);
+
+                // Apply to morphs
+                if (this.mouthMorphs.jawOpen) {
+                    setMorphValue(this.mouthMorphs.jawOpen, jawValue);
+                }
+                if (this.mouthMorphs.mouthOpen) {
+                    setMorphValue(this.mouthMorphs.mouthOpen, mouthOpenValue);
+                }
+                if (this.mouthMorphs.mouthPucker || this.mouthMorphs.lipPucker) {
+                    const morphName = this.mouthMorphs.mouthPucker || this.mouthMorphs.lipPucker;
+                    setMorphValue(morphName, puckerValue);
+                }
+                if (this.mouthMorphs.mouthSmile) {
+                    setMorphValue(this.mouthMorphs.mouthSmile, smileValue);
+                }
+
+                // Also apply generic mouth morphs for models without specific targets
+                morphMeshes.forEach(mesh => {
+                    const dict = mesh.morphTargetDictionary || {};
+                    Object.keys(dict).forEach(name => {
+                        const lower = name.toLowerCase();
+                        if (lower.includes('mouth') || lower.includes('jaw') || lower.includes('lip')) {
+                            const index = dict[name];
+                            if (index !== undefined) {
+                                // Vary based on morph name
+                                let value = mouthOpenValue;
+                                if (lower.includes('jaw')) value = jawValue;
+                                else if (lower.includes('pucker')) value = puckerValue;
+                                else if (lower.includes('smile')) value = smileValue;
+
+                                mesh.morphTargetInfluences[index] = value;
+                            }
+                        }
+                    });
+                });
+
+                requestAnimationFrame(() => this.animateMouth());
+            }
+
+            resetMouth() {
+                // Smoothly reset all mouth morphs to 0
+                morphMeshes.forEach(mesh => {
+                    const dict = mesh.morphTargetDictionary || {};
+                    Object.keys(dict).forEach(name => {
+                        const lower = name.toLowerCase();
+                        if (lower.includes('mouth') || lower.includes('jaw') || lower.includes('lip')) {
+                            animateMorph(name, 0, 200);
+                        }
+                    });
+                });
+            }
+
+            stop() {
+                if (this.source) {
+                    try {
+                        this.source.stop();
+                    } catch (e) { }
+                    this.source = null;
+                }
+                this.isPlaying = false;
+                this.isSpeaking = false;
+                this.resetMouth();
+                updateVoiceStatus('Click mic to talk');
+            }
+
+            setApiKey(key) {
+                // Add new key to the array if not already present
+                if (key && !this.apiKeys.includes(key)) {
+                    this.apiKeys.push(key);
+                    console.log(`Added new API key. Total keys: ${this.apiKeys.length}`);
+                }
+            }
+
+            getApiKeysStatus() {
+                return `${this.apiKeys.length} API key(s) loaded (current: ${this.currentKeyIndex + 1})`;
+            }
+        }
+
+        // Initialize voice sync manager
+        const voiceManager = new VoiceSyncManager();
+
+        // ============================================
+        // Real-time Voice Chat with Speech Recognition
+        // ============================================
+
+        class VoiceChatManager {
+            constructor(voiceManager) {
+                this.voiceManager = voiceManager;
+                this.recognition = null;
+                this.isListening = false;
+                this.isProcessing = false;
+                this.conversationHistory = [];
+
+                // State machine for streaming
+                this.state = 'idle'; // idle, listening, streaming, speaking
+                this.streamBuffer = [];
+                this.currentStreamController = null;
+                this.ttsQueue = [];
+                this.isProcessingTTS = false;
+
+                this.initSpeechRecognition();
+            }
+
+            initSpeechRecognition() {
+                // Check for speech recognition support
+                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                    console.warn('Speech recognition not supported');
+                    return;
+                }
+
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                this.recognition = new SpeechRecognition();
+
+                // Configure recognition
+                this.recognition.continuous = false;
+                this.recognition.interimResults = false;
+                this.recognition.lang = 'en-US';
+                this.recognition.maxAlternatives = 1;
+
+                // Event handlers
+                this.recognition.onstart = () => {
+                    this.isListening = true;
+                    updateVoiceStatus('Listening... speak now', 'listening');
+                    console.log('Speech recognition started');
+                };
+
+                this.recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    console.log('Speech recognized:', transcript);
+                    this.handleUserSpeech(transcript);
+                };
+
+                this.recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                    this.stopListening();
+
+                    let errorMsg = 'Speech recognition error';
+                    switch (event.error) {
+                        case 'no-speech':
+                            errorMsg = 'No speech detected. Try again.';
+                            break;
+                        case 'audio-capture':
+                            errorMsg = 'Microphone not accessible';
+                            break;
+                        case 'not-allowed':
+                            errorMsg = 'Microphone permission denied';
+                            break;
+                        case 'network':
+                            errorMsg = 'Network error occurred';
+                            break;
+                    }
+
+                    updateVoiceStatus(errorMsg, 'error');
+                    setTimeout(() => updateVoiceStatus('Click mic to talk'), 3000);
+                };
+
+                this.recognition.onend = () => {
+                    this.isListening = false;
+                    if (!this.isProcessing) {
+                        updateVoiceStatus('Click mic to talk');
+                    }
+                    console.log('Speech recognition ended');
+                };
+            }
+
+            async handleUserSpeech(transcript) {
+                this.setState('streaming');
+                this.isProcessing = true;
+                updateVoiceStatus('Processing...', 'processing');
+
+                // Log user input to console
+                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                console.log('👤 USER SAID:', transcript);
+                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+                // Add user message to conversation history
+                this.conversationHistory.push({
+                    role: 'user',
+                    content: transcript,
+                    timestamp: new Date()
+                });
+
+                // Update conversation display
+                this.updateConversationDisplay();
+
+                // Stream AI response with parallel TTS processing
+                await this.streamAIResponse(transcript);
+
+                this.isProcessing = false;
+                this.setState('idle');
+                updateVoiceStatus('Click mic to talk');
+            }
+
+            setState(newState) {
+                console.log(`State transition: ${this.state} -> ${newState}`);
+                this.state = newState;
+            }
+
+            async streamAIResponse(userInput) {
+                try {
+                    const response = await fetch('http://localhost:3000/api/chat/stream', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message: userInput,
+                            conversationId: this.getSessionId()
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Backend error: ${response.status}`);
+                    }
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let fullResponse = '';
+
+                    // Add placeholder for doctor's response
+                    const doctorMessageIndex = this.conversationHistory.length;
+                    this.conversationHistory.push({
+                        role: 'doctor',
+                        content: '',
+                        timestamp: new Date()
+                    });
+
+                    // Collect the full response first (don't speak yet)
+                    while (true) {
+                        const { done, value } = await reader.read();
+
+                        if (done) break;
+
+                        const chunk = decoder.decode(value, { stream: true });
+                        const lines = chunk.split('\n');
+
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.slice(6);
+
+                                if (data === '[DONE]') {
+                                    break;
+                                }
+
+                                try {
+                                    const parsed = JSON.parse(data);
+                                    const content = parsed.choices?.[0]?.delta?.content || '';
+
+                                    if (content) {
+                                        fullResponse += content;
+
+                                        // Update conversation display in real-time
+                                        this.conversationHistory[doctorMessageIndex].content = fullResponse;
+                                        this.updateConversationDisplay();
+                                    }
+                                } catch (e) {
+                                    console.error('Error parsing stream data:', e);
+                                }
+                            }
+                        }
+                    }
+
+                    // Log complete response to console
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    console.log('🩺 DOCTOR KNOW REPLIED:', fullResponse);
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+                    // Now speak the COMPLETE response all at once
+                    if (fullResponse.trim()) {
+                        await this.voiceManager.speak(fullResponse.trim());
+                    }
+
+                } catch (error) {
+                    console.error('Streaming error:', error);
+
+                    // Fallback to non-streaming
+                    const response = await this.generateAIResponse(userInput);
+
+                    this.conversationHistory.push({
+                        role: 'doctor',
+                        content: response,
+                        timestamp: new Date()
+                    });
+
+                    this.updateConversationDisplay();
+                    await this.voiceManager.speak(response);
+                }
+            }
+
+            async queueTTS(text) {
+                this.ttsQueue.push(text);
+
+                // Start processing if not already running
+                if (!this.isProcessingTTS) {
+                    this.processTTSQueue();
+                }
+            }
+
+            async processTTSQueue() {
+                this.isProcessingTTS = true;
+                this.setState('speaking');
+
+                while (this.ttsQueue.length > 0) {
+                    const text = this.ttsQueue.shift();
+
+                    try {
+                        await this.voiceManager.speak(text);
+                    } catch (error) {
+                        console.error('TTS error:', error);
+                    }
+                }
+
+                this.isProcessingTTS = false;
+            }
+
+            async waitForTTSCompletion() {
+                // Wait until TTS queue is empty and processing is done
+                while (this.ttsQueue.length > 0 || this.isProcessingTTS) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+
+            generateDoctorResponse(userInput) {
+                // Legacy method - keeping for compatibility
+                return this.generateAIResponse(userInput);
+            }
+
+            async generateAIResponse(userInput) {
+                // Call ChatGPT backend for intelligent responses
+                try {
+                    const response = await fetch('http://localhost:3000/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message: userInput,
+                            conversationId: this.getSessionId()
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Backend error: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+
+                    // Log the response to console
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    console.log('🩺 DOCTOR KNOW REPLIED:', data.response);
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+                    return data.response;
+
+                } catch (error) {
+                    console.error('ChatGPT backend error:', error);
+
+                    // Fallback to rule-based responses if backend is unavailable
+                    console.warn('Using fallback responses - backend not available');
+                    const fallback = this.getFallbackResponse(userInput);
+
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                    console.log('🩺 DOCTOR KNOW REPLIED (FALLBACK):', fallback);
+                    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+                    return fallback;
+                }
+            }
+
+            getSessionId() {
+                // Generate or retrieve session ID for conversation continuity
+                if (!this.sessionId) {
+                    this.sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                }
+                return this.sessionId;
+            }
+
+            getFallbackResponse(userInput) {
+                // Fallback responses when backend is unavailable
+                const input = userInput.toLowerCase();
+
+                if (input.includes('hello') || input.includes('hi')) {
+                    return "Hello there. I'm Doctor Know. It seems my connection to the deeper knowledge is unstable right now, but I'm still here to chat.";
+                }
+
+                return "Interesting. I'm processing your words, though my full capabilities seem limited at the moment. Tell me more.";
+            }
+
+            startListening() {
+                if (!this.recognition) {
+                    updateVoiceStatus('Speech recognition not supported', 'error');
+                    return;
+                }
+
+                if (this.isListening || this.voiceManager.isPlaying) {
+                    return;
+                }
+
+                try {
+                    this.recognition.start();
+                } catch (error) {
+                    console.error('Failed to start speech recognition:', error);
+                    updateVoiceStatus('Failed to start microphone', 'error');
+                }
+            }
+
+            stopListening() {
+                if (this.recognition && this.isListening) {
+                    this.recognition.stop();
+                }
+                this.isListening = false;
+                this.isProcessing = false;
+            }
+
+            getConversationHistory() {
+                return this.conversationHistory;
+            }
+
+            clearHistory() {
+                this.conversationHistory = [];
+                this.updateConversationDisplay();
+            }
+
+            updateConversationDisplay() {
+                const historyDiv = document.getElementById('conversationHistory');
+                if (!historyDiv) return;
+
+                historyDiv.innerHTML = '';
+
+                this.conversationHistory.slice(-6).forEach(message => {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `conversation-message ${message.role}`;
+                    messageDiv.textContent = message.content;
+                    historyDiv.appendChild(messageDiv);
+                });
+
+                // Auto-scroll to bottom
+                historyDiv.scrollTop = historyDiv.scrollHeight;
+            }
+        }
+
+        // Initialize voice chat manager
+        const voiceChatManager = new VoiceChatManager(voiceManager);
+
+        // UI Helper functions
+        function updateVoiceStatus(text, state = '') {
+            const status = document.getElementById('voiceStatus');
+            const btn = document.getElementById('voiceBtn');
+
+            status.textContent = text;
+            btn.classList.remove('listening', 'speaking', 'processing');
+            if (state) btn.classList.add(state);
+        }
+
+        function showApiKeyModal() {
+            document.getElementById('apiKeyModal').classList.add('show');
+        }
+
+        function hideApiKeyModal() {
+            document.getElementById('apiKeyModal').classList.remove('show');
+        }
+
+        // Event Listeners for Voice UI
+        document.getElementById('saveApiKey').addEventListener('click', () => {
+            const input = document.getElementById('apiKeyInput').value.trim();
+            if (input) {
+                // Split by newlines and add each key
+                const keys = input.split('\n').map(k => k.trim()).filter(k => k.length > 0);
+                keys.forEach(key => voiceManager.setApiKey(key));
+                hideApiKeyModal();
+                updateVoiceStatus(`${voiceManager.getApiKeysStatus()} - Ready to talk!`);
+            }
+        });
+
+        document.getElementById('apiKeyInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('saveApiKey').click();
+            }
+        });
+
+        // Close modal button
+        document.getElementById('closeApiModal').addEventListener('click', () => {
+            hideApiKeyModal();
+        });
+
+        // Close modal with ESC key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('apiKeyModal');
+                if (modal.classList.contains('show')) {
+                    hideApiKeyModal();
+                }
+            }
+        });
+
+        document.getElementById('sendBtn').addEventListener('click', () => {
+            const text = document.getElementById('textInput').value.trim();
+            if (text) {
+                voiceManager.speak(text);
+                document.getElementById('textInput').value = '';
+            }
+        });
+
+        document.getElementById('textInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('sendBtn').click();
+            }
+        });
+
+        // Voice button - now handles real-time voice chat
+        document.getElementById('voiceBtn').addEventListener('click', () => {
+            console.log('Voice button clicked');
+            console.log('API keys available:', voiceManager.apiKeys.length);
+            console.log('Is listening:', voiceChatManager.isListening);
+            console.log('Is playing:', voiceManager.isPlaying);
+
+            if (voiceManager.apiKeys.length === 0) {
+                console.log('No API keys - showing modal');
+                showApiKeyModal();
+            } else if (voiceChatManager.isListening) {
+                console.log('Currently listening - stopping');
+                voiceChatManager.stopListening();
+            } else if (voiceManager.isPlaying) {
+                console.log('Currently playing - stopping');
+                voiceManager.stop();
+            } else {
+                console.log('Starting to listen');
+                voiceChatManager.startListening();
+            }
+        });
+
+        // Settings button - change API key
+        document.getElementById('settingsBtn').addEventListener('click', () => {
+            const currentKeys = voiceManager.apiKeys.join('\n');
+            document.getElementById('apiKeyInput').value = currentKeys;
+            document.getElementById('apiKeyInput').placeholder = 'Enter API keys (one per line)';
+            showApiKeyModal();
+        });
+
+        // API key is embedded - no need to show modal on load
+
+        // ============================================
+        // Script Playback Feature
+        // ============================================
+
+        class ScriptPlayer {
+            constructor(voiceManager) {
+                this.voiceManager = voiceManager;
+                this.isPlaying = false;
+                this.isPaused = false;
+                this.currentLineIndex = 0;
+                this.lines = [];
+                this.delayBetweenLines = 1.5; // seconds
+                this.pausedAt = 0; // Track where we paused
+            }
+
+            parseScript(text) {
+                // Split by newlines and filter empty lines
+                return text.split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.length > 0);
+            }
+
+            async play() {
+                if (this.isPaused) {
+                    // Resume from where we paused
+                    this.resume();
+                    return;
+                }
+
+                const textarea = document.getElementById('scriptTextarea');
+                this.lines = this.parseScript(textarea.value);
+
+                if (this.lines.length === 0) {
+                    this.updateStatus('No script lines to play');
+                    return;
+                }
+
+                this.delayBetweenLines = parseFloat(document.getElementById('lineDelay').value) || 1.5;
+                this.isPlaying = true;
+                this.isPaused = false;
+                this.currentLineIndex = 0;
+
+                this.updatePlayButton('playing');
+
+                await this.playNextLine();
+            }
+
+            resume() {
+                this.isPlaying = true;
+                this.isPaused = false;
+                this.updatePlayButton('playing');
+                this.playNextLine();
+            }
+
+            pause() {
+                this.isPlaying = false;
+                this.isPaused = true;
+                this.voiceManager.stop();
+
+                this.updatePlayButton('paused');
+                this.updateStatus(`Paused at line ${this.currentLineIndex + 1}/${this.lines.length}`);
+            }
+
+            async playNextLine() {
+                if (!this.isPlaying || this.currentLineIndex >= this.lines.length) {
+                    if (this.currentLineIndex >= this.lines.length) {
+                        this.complete();
+                    }
+                    return;
+                }
+
+                const line = this.lines[this.currentLineIndex];
+                this.updateStatus(`Line ${this.currentLineIndex + 1}/${this.lines.length}: "${line.substring(0, 30)}${line.length > 30 ? '...' : ''}"`);
+
+                // Wait for the voice manager to finish speaking
+                await this.speakAndWait(line);
+
+                if (!this.isPlaying) return; // Check if paused during speech
+
+                this.currentLineIndex++;
+
+                if (this.currentLineIndex < this.lines.length && this.isPlaying) {
+                    // Wait for delay then play next line
+                    this.updateStatus(`Waiting ${this.delayBetweenLines}s before next line...`);
+                    await this.delay(this.delayBetweenLines * 1000);
+
+                    if (this.isPlaying) {
+                        await this.playNextLine();
+                    }
+                } else if (this.currentLineIndex >= this.lines.length) {
+                    this.complete();
+                }
+            }
+
+            async speakAndWait(text) {
+                return new Promise(async (resolve) => {
+                    // Start speaking
+                    await this.voiceManager.speak(text);
+
+                    // Wait for speech to complete
+                    const checkInterval = setInterval(() => {
+                        if (!this.voiceManager.isPlaying && !this.voiceManager.isSpeaking) {
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                        // Also resolve if paused
+                        if (!this.isPlaying) {
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                    }, 100);
+
+                    // Timeout after 60 seconds max
+                    setTimeout(() => {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }, 60000);
+                });
+            }
+
+            delay(ms) {
+                return new Promise(resolve => {
+                    const timeout = setTimeout(resolve, ms);
+
+                    // Check every 100ms if we should cancel the delay (if paused)
+                    const checkInterval = setInterval(() => {
+                        if (!this.isPlaying) {
+                            clearTimeout(timeout);
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                    }, 100);
+
+                    // Clear interval when timeout completes
+                    setTimeout(() => clearInterval(checkInterval), ms);
+                });
+            }
+
+            stop() {
+                this.isPlaying = false;
+                this.isPaused = false;
+                this.currentLineIndex = 0; // Reset to beginning
+                this.voiceManager.stop();
+
+                this.updatePlayButton('stopped');
+                this.updateStatus('Stopped');
+            }
+
+            complete() {
+                this.isPlaying = false;
+                this.isPaused = false;
+                this.currentLineIndex = 0; // Reset for next play
+
+                this.updatePlayButton('stopped');
+                this.updateStatus('Script completed!');
+            }
+
+            updatePlayButton(state) {
+                const playBtn = document.getElementById('playScriptBtn');
+
+                if (state === 'playing') {
+                    playBtn.classList.add('playing');
+                    playBtn.textContent = '⏸ Pause';
+                } else if (state === 'paused') {
+                    playBtn.classList.remove('playing');
+                    playBtn.textContent = '▶ Resume';
+                } else { // stopped or completed
+                    playBtn.classList.remove('playing');
+                    playBtn.textContent = '▶ Play Script';
+                }
+            }
+
+            updateStatus(text) {
+                document.getElementById('scriptStatus').textContent = text;
+            }
+        }
+
+        // Initialize script player
+        const scriptPlayer = new ScriptPlayer(voiceManager);
+
+        // Script playback event listeners
+        document.getElementById('playScriptBtn').addEventListener('click', () => {
+            if (scriptPlayer.isPlaying) {
+                scriptPlayer.pause();
+            } else {
+                scriptPlayer.play();
+            }
+        });
+
+        document.getElementById('stopScriptBtn').addEventListener('click', () => {
+            scriptPlayer.stop();
+        });
+
+        // Predefined scripts
+        const predefinedScripts = {
+            doctorknow: `Hello there. Yes… you. I see you're looking at me, which means the experiment is working.
+My name is Doctor Know. I know many things. Some of them are even correct.
+I don't eat. I don't sleep. And yet somehow… I'm still tired.
+I was designed to offer wisdom, and occasionally make things up very confidently.
+If you hear my mustache moving, don't worry. That's just how I think.
+Sometimes… people forget I'm here. I don't forget. I just wait.
+I don't have eyes like yours. But I still notice things.
+If you're wondering what I'm thinking… I'm wondering the same thing about you.`,
+
+            doctor: `Hello, I am Dr. Know, your virtual healthcare assistant.
+How are you feeling today?
+I'm here to help you with your health concerns.
+Let me ask you a few questions about your symptoms.
+Have you been experiencing any pain or discomfort?
+When did these symptoms first appear?
+On a scale of 1 to 10, how would you rate your pain level?
+Have you taken any medication for this condition?
+I recommend that you get plenty of rest and stay hydrated.
+If your symptoms persist, please consult with a healthcare professional.
+Is there anything else you'd like to discuss about your health?
+Thank you for using our virtual healthcare service.
+Take care and have a wonderful day!`,
+
+            greeting: `Welcome to our virtual healthcare platform.
+I'm your AI doctor assistant.
+I'm here to provide you with medical guidance and support.
+Please feel free to ask me any health-related questions.
+Your health and wellbeing are my top priority.`,
+
+            checkup: `Let's begin your virtual health checkup.
+First, I'll need to ask you some basic questions.
+Are you currently taking any medications?
+Do you have any known allergies?
+Have you experienced any recent changes in your health?
+Any family history of medical conditions I should know about?
+Based on your responses, I'll provide appropriate recommendations.`,
+
+            symptoms: `I understand you're experiencing some symptoms.
+Can you describe what you're feeling in detail?
+When did these symptoms first start?
+Have they gotten better or worse over time?
+Are there any activities that make them better or worse?
+Have you tried any treatments or remedies so far?
+I'll help you understand what might be causing these symptoms.`
+        };
+
+        // Reset script button
+        document.getElementById('resetScriptBtn').addEventListener('click', () => {
+            document.getElementById('scriptTextarea').value = predefinedScripts.doctorknow;
+            document.getElementById('scriptSelector').value = 'doctorknow';
+            scriptPlayer.stop();
+            document.getElementById('scriptStatus').textContent = 'Script reset to default';
+        });
+
+        // Script selector dropdown
+        document.getElementById('scriptSelector').addEventListener('change', (e) => {
+            const selectedScript = e.target.value;
+            if (predefinedScripts[selectedScript]) {
+                document.getElementById('scriptTextarea').value = predefinedScripts[selectedScript];
+                scriptPlayer.stop();
+                document.getElementById('scriptStatus').textContent = `Loaded: ${e.target.options[e.target.selectedIndex].text}`;
+            }
+        });
+
+        // Conversation history toggle
+        document.getElementById('conversationToggle').addEventListener('click', () => {
+            const panel = document.getElementById('conversationPanel');
+            panel.classList.toggle('show');
+        });
+
+        // Add conversation display update to voice chat manager
+        if (voiceChatManager) {
+            voiceChatManager.updateConversationDisplay = function () {
+                const historyDiv = document.getElementById('conversationHistory');
+                if (!historyDiv) return;
+
+                historyDiv.innerHTML = '';
+
+                this.conversationHistory.slice(-6).forEach(message => {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `conversation-message ${message.role}`;
+                    messageDiv.textContent = message.content;
+                    historyDiv.appendChild(messageDiv);
+                });
+
+                // Auto-scroll to bottom
+                historyDiv.scrollTop = historyDiv.scrollHeight;
+            };
+        }
+    </script>
+
+</body>
+
+</html>

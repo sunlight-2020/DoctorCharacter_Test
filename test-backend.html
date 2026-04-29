@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Backend Test</title>
+</head>
+<body>
+    <h1>Doctor Know Backend Test</h1>
+    <button onclick="testBackend()">Test Backend</button>
+    <button onclick="testSpeechRecognition()">Test Speech Recognition</button>
+    <div id="result" style="margin-top: 20px; padding: 10px; background: #f0f0f0;"></div>
+    
+    <script>
+        async function testBackend() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing backend...';
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: 'Hello Doctor Know',
+                        conversationId: 'test'
+                    })
+                });
+                
+                const data = await response.json();
+                resultDiv.innerHTML = `<strong>Success!</strong><br>Response: ${data.response}`;
+                console.log('Backend test successful:', data);
+            } catch (error) {
+                resultDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
+                console.error('Backend test failed:', error);
+            }
+        }
+        
+        function testSpeechRecognition() {
+            const resultDiv = document.getElementById('result');
+            
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                resultDiv.innerHTML = '<strong>Error:</strong> Speech recognition not supported in this browser';
+                return;
+            }
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            
+            recognition.onstart = () => {
+                resultDiv.innerHTML = '<strong>Listening...</strong> Speak now!';
+                console.log('Speech recognition started');
+            };
+            
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                resultDiv.innerHTML = `<strong>You said:</strong> ${transcript}`;
+                console.log('Recognized:', transcript);
+            };
+            
+            recognition.onerror = (event) => {
+                resultDiv.innerHTML = `<strong>Error:</strong> ${event.error}`;
+                console.error('Speech recognition error:', event.error);
+            };
+            
+            recognition.onend = () => {
+                console.log('Speech recognition ended');
+            };
+            
+            try {
+                recognition.start();
+            } catch (error) {
+                resultDiv.innerHTML = `<strong>Error starting:</strong> ${error.message}`;
+                console.error('Error starting recognition:', error);
+            }
+        }
+    </script>
+</body>
+</html>
